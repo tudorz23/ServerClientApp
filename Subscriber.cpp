@@ -1,10 +1,42 @@
 #include "Subscriber.h"
 
+#include <sys/socket.h>
+#include <cstring>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+
+#include "utils.h"
 
 using namespace std;
+
 
 Subscriber::Subscriber(string id, uint32_t server_ip, uint16_t server_port) {
     this->id = id;
     this->server_ip = server_ip;
     this->server_port = server_port;
+}
+
+
+void Subscriber::prepare() {
+    // Create TCP socket to connect to the server.
+    tcp_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    DIE(tcp_sockfd < 0, "[SUBSCRIBER] TCP socket creation failed.\n");
+
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(struct sockaddr_in));
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(server_port);
+    server_addr.sin_addr.s_addr = server_ip;
+
+    // Disable Nagle algorithm.
+    int opt_flag = 1;
+    int rc = setsockopt(tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
+    DIE(rc < 0, "[SUBSCRIBER] Nagle dsabling failed.\n");
+
+    // Connect to the server.
+    rc = connect(tcp_sockfd, (const struct sockaddr *)&server_addr, sizeof(server_addr));
+    DIE(rc < 0, "[SUBSCRIBER] Connection to server failed.\n");
 }

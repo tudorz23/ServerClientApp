@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
     if (argc != 2) {
-        printf("[SERVER] Usage: ./%s <port>\n", argv[0]);
+        cout << "[SERVER] Usage: " << argv[0] << " <PORT>\n";
         return 1;
     }
 
@@ -28,6 +28,9 @@ int main(int argc, char **argv) {
 
 	server->prepare();
 
+    server->run();
+
+    delete server;
 
     return 0;
 }

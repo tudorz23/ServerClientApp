@@ -5,10 +5,13 @@ TARGETS = server subscriber
 
 all: $(TARGETS)
 
-server.o: Server.cpp Server.h
+protocols.o: protocols.cpp
+	$(CC) -c $(CFLAGS) protocols.cpp -o protocols.o
+
+server.o: Server.cpp Server.h protocols.h
 	$(CC) -c $(CFLAGS) Server.cpp -o server.o
 
-subscriber.o: Subscriber.cpp Subscriber.h
+subscriber.o: Subscriber.cpp Subscriber.h protocols.h
 	$(CC) -c $(CFLAGS) Subscriber.cpp -o subscriber.o
 
 server_main.o: server_main.cpp

@@ -9,8 +9,8 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
     if (argc != 4) {
-        printf("[SUBSCRIBER] Usage: ./%s <CLIENT_ID> <SERVER_IP> <SERVER_PORT> \n",
-               argv[0]);
+        cout << "[SUBSCRIBER] Usage: " << argv[0];
+        cout << " <CLIENT_ID> <SERVER_IP> <SERVER_PORT> \n";
         return 1;
     }
 
@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     int rc = sscanf(argv[4], "%hu", &server_port);
     DIE(rc != 1, "Invalid port number.\n");
 
-    // Get server_id as number.
+    // Get server_id as number in network order.
     uint32_t server_ip = inet_addr(argv[2]);
 
     Subscriber *subscriber;
@@ -30,5 +30,7 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
+    subscriber->prepare();
 
+    return 0;
 }

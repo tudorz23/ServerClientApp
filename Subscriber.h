@@ -14,11 +14,14 @@ class Subscriber {
 
 
  public:
+
     /**
      * Constructor.
      * @param id String id of the Subscriber.
      */
     Subscriber(std::string id, uint32_t server_ip, uint16_t server_port);
+
+    void prepare();
 };
 
 
