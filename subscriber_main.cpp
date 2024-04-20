@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
 
     // Get server_port as number.
     uint16_t server_port;
-    int rc = sscanf(argv[4], "%hu", &server_port);
+    int rc = sscanf(argv[3], "%hu", &server_port);
     DIE(rc != 1, "Invalid port number.\n");
 
     // Get server_id as number in network order.
@@ -31,6 +31,8 @@ int main(int argc, char **argv) {
     }
 
     subscriber->prepare();
+
+    subscriber->check_validity();
 
     return 0;
 }

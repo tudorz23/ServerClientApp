@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 
 #include "utils.h"
+#include "protocols.h"
+#include <cstdlib>
 
 using namespace std;
 
@@ -34,9 +36,28 @@ void Subscriber::prepare() {
     // Disable Nagle algorithm.
     int opt_flag = 1;
     int rc = setsockopt(tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
-    DIE(rc < 0, "[SUBSCRIBER] Nagle dsabling failed.\n");
+    DIE(rc < 0, "[SUBSCRIBER] Nagle disabling failed.\n");
 
     // Connect to the server.
     rc = connect(tcp_sockfd, (const struct sockaddr *)&server_addr, sizeof(server_addr));
     DIE(rc < 0, "[SUBSCRIBER] Connection to server failed.\n");
+}
+
+
+bool Subscriber::check_validity() {
+    // Send client id to the server.
+    tcp_message *msg = (tcp_message*) malloc(sizeof(tcp_message));
+    DIE(!msg, "malloc failed\n");
+
+    msg->len = id.length() + 1;
+    strcpy(msg->payload, id.c_str());
+    int rc = send_all(tcp_sockfd, msg, sizeof(tcp_message));
+    DIE(rc < 0, "Error sending id\n");
+
+
+    memset(msg, 0, sizeof(tcp_message));
+    rc = recv_all(tcp_sockfd, msg, sizeof(tcp_message));
+    DIE(rc < 0, "Error receiving OK status from server\n");
+
+    return true;
 }

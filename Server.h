@@ -68,7 +68,7 @@ class Server {
     bool check_stdin_data();
 
 
-    // void stop();
+    void manage_connection_request();
 };
 
 

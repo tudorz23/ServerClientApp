@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 
 #include "utils.h"
+#include "protocols.h"
+#include <cstdlib>
 
 #define LISTEN_BACKLOG 50
 
@@ -119,6 +121,11 @@ void Server::run() {
                 break;
             }
         }
+
+        if (poll_fds[2].revents & POLLIN) {
+            // Received connection request on tcp_socket.
+            manage_connection_request();
+        }
     }
 
 
@@ -137,4 +144,36 @@ bool Server::check_stdin_data() {
 
     cout << "Only exit command is supported\n";
     return false;
+}
+
+
+void Server::manage_connection_request() {
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+
+    int client_sockfd = accept(tcp_sockfd, (struct sockaddr*)&client_addr, &client_len);
+    DIE(client_sockfd < 0, "[SERVER] accept failed.\n");
+
+    // Disable Nagle algorithm.
+    int opt_flag = 1;
+    int rc = setsockopt(client_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
+    DIE(rc < 0, "[SERVER] Nagle disabling for client failed.\n");
+
+    tcp_message *msg = (tcp_message*) malloc(sizeof(tcp_message));
+    DIE(!msg, "malloc failed\n");
+
+    rc = recv_all(client_sockfd, msg, sizeof(tcp_message));
+    DIE(rc < 0, "recv failed\n");
+
+    char *new_id = (char *) malloc(msg->len);
+    DIE(!new_id, "malloc failed\n");
+
+    strncpy(new_id, msg->payload, msg->len);
+
+    string client_id = string(new_id);
+    cout << "New client connected: " << client_id << "\n";
+
+    // Send confirmation.
+
+
 }

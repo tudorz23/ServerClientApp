@@ -21,7 +21,11 @@ class Subscriber {
      */
     Subscriber(std::string id, uint32_t server_ip, uint16_t server_port);
 
+
     void prepare();
+
+
+    bool check_validity();
 };
 
 
