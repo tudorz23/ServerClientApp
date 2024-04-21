@@ -22,6 +22,7 @@ class Server {
     std::unordered_map<std::string, client*> clients;
 
     std::vector<pollfd> poll_fds;
+    int num_pollfds;
 
  public:
 
@@ -88,6 +89,9 @@ class Server {
      * @param client_sockfd Socket to associate with the new pollfd.
      */
     void add_client_pollfd(int client_sockfd);
+
+
+    std::pair<std::string, client*> get_client_from_fd(int fd);
 };
 
 

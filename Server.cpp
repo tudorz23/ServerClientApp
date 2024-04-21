@@ -17,12 +17,14 @@ using namespace std;
 
 Server::Server(uint16_t port) {
     this->port = port;
+    this->num_pollfds = 0;
 }
 
 
 Server::~Server() {
     // TODO: Close all clients.
     cout << "Destructor called\n";
+    cout << "Num pollfd is " << num_pollfds << "\n";
 }
 
 
@@ -92,10 +94,15 @@ void Server::prepare() {
     tcp_pollfd.fd = tcp_sockfd;
     tcp_pollfd.events = POLLIN;
     poll_fds.push_back(tcp_pollfd);
+
+    num_pollfds = 3;
 }
 
 
 void Server::run() {
+    id_message *msg = (id_message*) calloc(1, sizeof(id_message));
+    DIE(!msg, "calloc failed\n");
+
     while (true) {
         // Use vector::data to access the start of the memory zone
         // internally used by the vector.
@@ -113,9 +120,51 @@ void Server::run() {
             // Received connection request on tcp_socket.
             manage_connection_request();
         }
+
+        if (num_pollfds < 4) {
+            continue;
+        }
+
+        // Iterate the client sockets.
+        auto it = poll_fds.begin() + 3;
+        while (it != poll_fds.end()) {
+            pollfd client_pollfd = *it;
+
+            bool deleted = false;
+
+            if (client_pollfd.revents & POLLIN) {
+                // Got message from client.
+                memset(msg, 0, sizeof(id_message));
+                rc = recv_all(client_pollfd.fd, msg, sizeof(id_message));
+                DIE(rc < 0, "recv failed\n");
+
+                if (rc == 0) {
+                    // Connection has been closed.
+                    pair<string, client*> entry = get_client_from_fd(client_pollfd.fd);
+
+                    client* exiting_client = entry.second;
+                    // Mark client as disconnected.
+                    exiting_client->is_connected = false;
+                    exiting_client->curr_fd = -1;
+
+                    close(client_pollfd.fd);
+                    it = poll_fds.erase(it);
+                    num_pollfds--;
+
+                    cout << "Client " << entry.first << " disconnected.\n";
+                    deleted = true;
+                } else {
+                    // TODO: Get the message.
+                }
+            }
+
+            if (!deleted) {
+                it++;
+            }
+        }
     }
 
-
+    free(msg);
 }
 
 
@@ -156,6 +205,7 @@ void Server::add_client_pollfd(int client_sockfd) {
     client_pollfd.events = POLLIN;
 
     poll_fds.push_back(client_pollfd);
+    num_pollfds++;
 }
 
 
@@ -203,7 +253,7 @@ void Server::manage_connection_request() {
         // Send confirmation.
         send_connection_response(msg, true, client_sockfd);
 
-        cout << "New client " << client_id << " connected: from "
+        cout << "New client " << client_id << " connected from "
             << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << ".\n";
 
         free(msg);
@@ -232,8 +282,21 @@ void Server::manage_connection_request() {
     // Send confirmation.
     send_connection_response(msg, true, client_sockfd);
 
-    cout << "New client " << client_id << " connected: from "
+    cout << "New client " << client_id << " connected from "
          << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "\n";
 
     free(msg);
+}
+
+
+pair<string, client*> Server::get_client_from_fd(int fd) {
+    for (auto const& entry : clients) {
+        if (entry.second->curr_fd == fd) {
+            return entry;
+        }
+    }
+
+    // Never reached.
+    pair<string, client*> placeholder("placeholder", NULL);
+    return placeholder;
 }

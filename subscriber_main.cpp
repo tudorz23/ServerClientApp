@@ -38,7 +38,9 @@ int main(int argc, char **argv) {
 
     subscriber->prepare();
 
-    subscriber->check_validity();
+    if (subscriber->check_validity()) {
+        subscriber->run();
+    }
 
     delete subscriber;
 

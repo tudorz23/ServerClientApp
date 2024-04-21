@@ -6,6 +6,7 @@
 #include <netinet/tcp.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
 #include "utils.h"
 #include "protocols.h"
@@ -18,6 +19,11 @@ Subscriber::Subscriber(string id, uint32_t server_ip, uint16_t server_port) {
     this->id = id;
     this->server_ip = server_ip;
     this->server_port = server_port;
+}
+
+
+Subscriber::~Subscriber() {
+    close(tcp_sockfd);
 }
 
 
@@ -54,20 +60,57 @@ bool Subscriber::check_validity() {
     int rc = send_all(tcp_sockfd, msg, sizeof(id_message));
     DIE(rc < 0, "Error sending id\n");
 
-
+    // Receive response regarding acceptance from server.
     memset(msg, 0, sizeof(id_message));
     rc = recv_all(tcp_sockfd, msg, sizeof(id_message));
     DIE(rc < 0, "Error receiving OK status from server\n");
 
-//    if (strcmp(msg->payload, "OK") == 0) {
-//        cout << "OK\n";
-//    } else {
-//        cout << "NOT OK\n";
-//    }
-
     cout << msg->payload << "\n";
 
-    free(msg);
+    if (strcmp(msg->payload, "OK") == 0) {
+        free(msg);
+        return true;
+    }
 
-    return true;
+    free(msg);
+    return false;
+}
+
+
+void Subscriber::run() {
+    pollfd stdin_pollfd;
+    stdin_pollfd.fd = STDIN_FILENO;
+    stdin_pollfd.events = POLLIN;
+
+    pollfd tcp_pollfd;
+    tcp_pollfd.fd = tcp_sockfd;
+    tcp_pollfd.events = POLLIN;
+
+    poll_fds.push_back(stdin_pollfd);
+    poll_fds.push_back(tcp_pollfd);
+
+    while (true) {
+        int rc = poll(poll_fds.data(), poll_fds.size(), -1);
+        DIE(rc < 0, "[SUBSCRIBER] poll failed.\n");
+
+        if (poll_fds[0].revents & POLLIN) {
+            // Received something from stdin.
+            if (manage_stdin_data()) {
+                break;
+            }
+        }
+    }
+}
+
+
+bool Subscriber::manage_stdin_data() {
+    string stdin_data;
+
+    getline(cin, stdin_data, '\n');
+
+    if (stdin_data == "exit") {
+        return true;
+    }
+
+    return false;
 }
