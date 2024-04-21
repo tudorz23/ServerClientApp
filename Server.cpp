@@ -26,18 +26,6 @@ Server::~Server() {
 }
 
 
-struct sockaddr_in Server::fill_sockaddr() {
-    struct sockaddr_in new_addr;
-    memset(&new_addr, 0, sizeof(struct sockaddr_in));
-
-    new_addr.sin_family = AF_INET;
-    new_addr.sin_addr.s_addr = INADDR_ANY;
-    new_addr.sin_port = htons(port);
-
-    return new_addr;
-}
-
-
 void Server::prepare_udp_socket() {
     // Create UDP socket.
     udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -49,7 +37,7 @@ void Server::prepare_udp_socket() {
     DIE(rc < 0, "[SERVER]: setsockopt() for UDP failed.\n");
 
     // Fill sockaddr_in structure details.
-    struct sockaddr_in udp_addr = fill_sockaddr();
+    struct sockaddr_in udp_addr = fill_sockaddr(port);
 
     // Bind the UDP socket to the address.
     rc = bind(udp_sockfd, (const struct sockaddr *)&udp_addr, sizeof(udp_addr));
@@ -68,7 +56,7 @@ void Server::prepare_tcp_socket() {
     DIE(rc < 0, "[SERVER]: setsockopt() for TCP failed.\n");
 
     // Fill sockaddr_in structure details.
-    struct sockaddr_in tcp_addr = fill_sockaddr();
+    struct sockaddr_in tcp_addr = fill_sockaddr(port);
 
     // Bind the TCP socket to the address.
     rc = bind(tcp_sockfd, (const struct sockaddr *)&tcp_addr, sizeof(tcp_addr));
@@ -82,7 +70,6 @@ void Server::prepare_tcp_socket() {
     rc = listen(tcp_sockfd, LISTEN_BACKLOG);
     DIE(rc < 0, "[SERVER] Listening failed.\n");
 }
-
 
 
 void Server::prepare() {
@@ -147,6 +134,31 @@ bool Server::check_stdin_data() {
 }
 
 
+void Server::send_connection_response(id_message *msg, bool ok_status, int client_sockfd) {
+    memset(msg, 0, sizeof(id_message));
+
+    if (ok_status) {
+        strcpy(msg->payload, "OK");
+    } else {
+        strcpy(msg->payload, "NOT OK");
+    }
+
+    msg->len = htons(strlen(msg->payload) + 1);
+
+    int rc = send_all(client_sockfd, msg, sizeof(id_message));
+    DIE(rc < 0, "Error sending confirmation\n");
+}
+
+
+void Server::add_client_pollfd(int client_sockfd) {
+    pollfd client_pollfd;
+    client_pollfd.fd = client_sockfd;
+    client_pollfd.events = POLLIN;
+
+    poll_fds.push_back(client_pollfd);
+}
+
+
 void Server::manage_connection_request() {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -172,14 +184,56 @@ void Server::manage_connection_request() {
 
     string client_id = string(new_id);
     free(new_id);
-    cout << "New client connected: " << client_id << "\n";
+
+    // Check if the id is already present in the id-client map.
+    unordered_map<string, client*>::iterator it = clients.find(client_id);
+    if (it == clients.end()) {
+        // It is a new client, so add it in the map.
+        client* new_client = (client *) malloc(sizeof(client));
+        DIE(!new_client, "malloc failed\n");
+
+        new_client->curr_fd = client_sockfd;
+        new_client->is_connected = true;
+
+        clients.insert({client_id, new_client});
+
+        // Add the pollfd to the vector of poll_fds.
+        add_client_pollfd(client_sockfd);
+
+        // Send confirmation.
+        send_connection_response(msg, true, client_sockfd);
+
+        cout << "New client " << client_id << " connected: from "
+            << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << ".\n";
+
+        free(msg);
+        return;
+    }
+
+    // Client id is already registered. Check if the client is already connected.
+    client* database_client = it->second;
+    if (database_client->is_connected) {
+        // Send decline message to the client and tell it to exit.
+        send_connection_response(msg, false, client_sockfd);
+
+        cout << "Client " << client_id << " already connected.\n";
+
+        free(msg);
+        return;
+    }
+
+    // Client is not connected, so update the client struct and mark as connected.
+    database_client->is_connected = true;
+    database_client->curr_fd = client_sockfd;
+
+    // Add the pollfd to the vector of poll_fds.
+    add_client_pollfd(client_sockfd);
 
     // Send confirmation.
-    memset(msg, 0, sizeof(id_message));
-    strcpy(msg->payload, "OK");
-    msg->len = htons(strlen(msg->payload) + 1);
-    rc = send_all(client_sockfd, msg, sizeof(id_message));
-    DIE(rc < 0, "Error sending confirmation\n");
+    send_connection_response(msg, true, client_sockfd);
+
+    cout << "New client " << client_id << " connected: from "
+         << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "\n";
 
     free(msg);
 }

@@ -8,10 +8,13 @@ all: $(TARGETS)
 protocols.o: protocols.cpp protocols.h
 	$(CC) -c $(CFLAGS) protocols.cpp -o protocols.o
 
-server.o: Server.cpp Server.h protocols.h
+utils.o: utils.cpp utils.h
+	$(CC) -c $(CFLAGS) utils.cpp -o utils.o
+
+server.o: Server.cpp Server.h protocols.h utils.h
 	$(CC) -c $(CFLAGS) Server.cpp -o server.o
 
-subscriber.o: Subscriber.cpp Subscriber.h protocols.h
+subscriber.o: Subscriber.cpp Subscriber.h protocols.h utils.h
 	$(CC) -c $(CFLAGS) Subscriber.cpp -o subscriber.o
 
 server_main.o: server_main.cpp
@@ -20,11 +23,11 @@ server_main.o: server_main.cpp
 subscriber_main.o: subscriber_main.cpp
 	$(CC) -c $(CFLAGS) subscriber_main.cpp -o subscriber_main.o
 
-server: server.o server_main.o protocols.o
-	$(CC) $(CFLAGS) server.o server_main.o protocols.o -o server
+server: server.o server_main.o protocols.o utils.o
+	$(CC) $(CFLAGS) server.o server_main.o protocols.o utils.o -o server
 
-subscriber: subscriber.o subscriber_main.o protocols.o
-	$(CC) $(CFLAGS) subscriber.o subscriber_main.o protocols.o -o subscriber
+subscriber: subscriber.o subscriber_main.o protocols.o utils.o
+	$(CC) $(CFLAGS) subscriber.o subscriber_main.o protocols.o utils.o -o subscriber
 
 clean:
 	rm -f *.o $(TARGETS)

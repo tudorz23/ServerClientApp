@@ -39,12 +39,6 @@ class Server {
     ~Server();
 
 
-	/**
-	 * Returns a new sockaddr_in struct with the basic IPv4 specifications.
-	 */
-	struct sockaddr_in fill_sockaddr();
-
-
     /**
      * Initializes the UDP socket.
      */
@@ -66,10 +60,34 @@ class Server {
     void run();
 
 
+    /**
+     * Parses input collected from the STDIN socket.
+     * @return true if the input is "exit", false otherwise.
+     */
     bool check_stdin_data();
 
 
+    /**
+     * Manages new connection requests. Accept if the client had not been
+     * previously registered of it it tries to reconnect, decline otherwise.
+     */
     void manage_connection_request();
+
+
+    /**
+     * Sends response to the client who requested to connect.
+     * @param msg id_message struct buffer to put the message into
+     * @param ok_status true to accept connection, false to decline
+     * @param client_sockfd Socket to communicate with the requester
+     */
+    void send_connection_response(id_message *msg, bool ok_status, int client_sockfd);
+
+
+    /**
+     * Adds a new pollfd struct to the vector of poll_fds.
+     * @param client_sockfd Socket to associate with the new pollfd.
+     */
+    void add_client_pollfd(int client_sockfd);
 };
 
 

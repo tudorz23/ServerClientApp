@@ -59,11 +59,13 @@ bool Subscriber::check_validity() {
     rc = recv_all(tcp_sockfd, msg, sizeof(id_message));
     DIE(rc < 0, "Error receiving OK status from server\n");
 
-    if (strcmp(msg->payload, "OK") == 0) {
-        cout << "OK\n";
-    } else {
-        cout << "NOT OK\n";
-    }
+//    if (strcmp(msg->payload, "OK") == 0) {
+//        cout << "OK\n";
+//    } else {
+//        cout << "NOT OK\n";
+//    }
+
+    cout << msg->payload << "\n";
 
     free(msg);
 

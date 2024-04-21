@@ -17,7 +17,7 @@
 struct client {
     // This will change when disconnecting and connecting again.
     int curr_fd;
-    bool connected;
+    bool is_connected;
 };
 
 
