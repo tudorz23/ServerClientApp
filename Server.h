@@ -10,6 +10,7 @@
 
 #include "protocols.h"
 
+
 class Server {
  private:
 	uint16_t port;
@@ -26,7 +27,7 @@ class Server {
 
 	/**
 	 * Constructor.
-	 * @param port port the server program is being run on
+	 * @param port The port the server program is being run on
 	 */
 	Server(uint16_t port);
 
@@ -45,7 +46,7 @@ class Server {
 
 
     /**
-     * Initializes te UDP socket.
+     * Initializes the UDP socket.
      */
 	void prepare_udp_socket();
 

@@ -16,7 +16,7 @@ using namespace std;
 
 
 Server::Server(uint16_t port) {
-	this->port = port;
+    this->port = port;
 }
 
 
@@ -27,56 +27,56 @@ Server::~Server() {
 
 
 struct sockaddr_in Server::fill_sockaddr() {
-	struct sockaddr_in new_addr;
-	memset(&new_addr, 0, sizeof(struct sockaddr_in));
+    struct sockaddr_in new_addr;
+    memset(&new_addr, 0, sizeof(struct sockaddr_in));
 
-	new_addr.sin_family = AF_INET;
-	new_addr.sin_addr.s_addr = INADDR_ANY;
-	new_addr.sin_port = htons(port);
+    new_addr.sin_family = AF_INET;
+    new_addr.sin_addr.s_addr = INADDR_ANY;
+    new_addr.sin_port = htons(port);
 
-	return new_addr;
+    return new_addr;
 }
 
 
 void Server::prepare_udp_socket() {
-	// Create UDP socket.
-	udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	DIE(udp_sockfd < 0, "[SERVER]: UDP socket creation failed.\n");
+    // Create UDP socket.
+    udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    DIE(udp_sockfd < 0, "[SERVER]: UDP socket creation failed.\n");
 
-	// Mark socket as reusable for multiple short time runnings.
-	int udp_enable = 1;
-	int rc = setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &udp_enable, sizeof(int));
-	DIE(rc < 0, "[SERVER]: setsockopt() for UDP failed.\n");
+    // Mark socket as reusable for multiple short time runnings.
+    int udp_enable = 1;
+    int rc = setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &udp_enable, sizeof(int));
+    DIE(rc < 0, "[SERVER]: setsockopt() for UDP failed.\n");
 
-	// Fill sockaddr_in structure details.
-	struct sockaddr_in udp_addr = fill_sockaddr();
+    // Fill sockaddr_in structure details.
+    struct sockaddr_in udp_addr = fill_sockaddr();
 
-	// Bind the UDP socket to the address.
-	rc = bind(udp_sockfd, (const struct sockaddr *)&udp_addr, sizeof(udp_addr));
-	DIE(rc < 0, "[SERVER] UDP socket bind failed.\n");
+    // Bind the UDP socket to the address.
+    rc = bind(udp_sockfd, (const struct sockaddr *)&udp_addr, sizeof(udp_addr));
+    DIE(rc < 0, "[SERVER] UDP socket bind failed.\n");
 }
 
 
 void Server::prepare_tcp_socket() {
-	// Create TCP socket.
-	tcp_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	DIE(tcp_sockfd < 0, "[SERVER] TCP socket creation failed.\n");
+    // Create TCP socket.
+    tcp_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    DIE(tcp_sockfd < 0, "[SERVER] TCP socket creation failed.\n");
 
-	// Mark socket as reusable for multiple short time runnings.
-	int opt_flag = 1;
-	int rc = setsockopt(tcp_sockfd, SOL_SOCKET, SO_REUSEADDR, &opt_flag, sizeof(int));
-	DIE(rc < 0, "[SERVER]: setsockopt() for TCP failed.\n");
+    // Mark socket as reusable for multiple short time runnings.
+    int opt_flag = 1;
+    int rc = setsockopt(tcp_sockfd, SOL_SOCKET, SO_REUSEADDR, &opt_flag, sizeof(int));
+    DIE(rc < 0, "[SERVER]: setsockopt() for TCP failed.\n");
 
-	// Fill sockaddr_in structure details.
-	struct sockaddr_in tcp_addr = fill_sockaddr();
+    // Fill sockaddr_in structure details.
+    struct sockaddr_in tcp_addr = fill_sockaddr();
 
-	// Bind the TCP socket to the address.
-	rc = bind(tcp_sockfd, (const struct sockaddr *)&tcp_addr, sizeof(tcp_addr));
-	DIE(rc < 0, "[SERVER] TCP socket bind failed.\n");
+    // Bind the TCP socket to the address.
+    rc = bind(tcp_sockfd, (const struct sockaddr *)&tcp_addr, sizeof(tcp_addr));
+    DIE(rc < 0, "[SERVER] TCP socket bind failed.\n");
 
-	// Disable Nagle algorithm.
-	rc = setsockopt(tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
-	DIE(rc < 0, "[SERVER] Nagle disabling failed.\n");
+    // Disable Nagle algorithm.
+    rc = setsockopt(tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
+    DIE(rc < 0, "[SERVER] Nagle disabling failed.\n");
 
     // Set the socket to listen.
     rc = listen(tcp_sockfd, LISTEN_BACKLOG);
@@ -86,8 +86,8 @@ void Server::prepare_tcp_socket() {
 
 
 void Server::prepare() {
-	prepare_udp_socket();
-	prepare_tcp_socket();
+    prepare_udp_socket();
+    prepare_tcp_socket();
 
     // Initialize the poll_fds vector with pollfds corresponding to
     // stdin and the UDP and TCP sockets.
@@ -159,21 +159,27 @@ void Server::manage_connection_request() {
     int rc = setsockopt(client_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
     DIE(rc < 0, "[SERVER] Nagle disabling for client failed.\n");
 
-    tcp_message *msg = (tcp_message*) malloc(sizeof(tcp_message));
+    id_message *msg = (id_message*) malloc(sizeof(id_message));
     DIE(!msg, "malloc failed\n");
 
-    rc = recv_all(client_sockfd, msg, sizeof(tcp_message));
+    rc = recv_all(client_sockfd, msg, sizeof(id_message));
     DIE(rc < 0, "recv failed\n");
 
-    char *new_id = (char *) malloc(msg->len);
+    char *new_id = (char *) malloc(ntohs(msg->len));
     DIE(!new_id, "malloc failed\n");
 
-    strncpy(new_id, msg->payload, msg->len);
+    strncpy(new_id, msg->payload, ntohs(msg->len));
 
     string client_id = string(new_id);
+    free(new_id);
     cout << "New client connected: " << client_id << "\n";
 
     // Send confirmation.
+    memset(msg, 0, sizeof(id_message));
+    strcpy(msg->payload, "OK");
+    msg->len = htons(strlen(msg->payload) + 1);
+    rc = send_all(client_sockfd, msg, sizeof(id_message));
+    DIE(rc < 0, "Error sending confirmation\n");
 
-
+    free(msg);
 }

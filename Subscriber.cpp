@@ -46,18 +46,26 @@ void Subscriber::prepare() {
 
 bool Subscriber::check_validity() {
     // Send client id to the server.
-    tcp_message *msg = (tcp_message*) malloc(sizeof(tcp_message));
+    id_message *msg = (id_message*) calloc(1, sizeof(id_message));
     DIE(!msg, "malloc failed\n");
 
-    msg->len = id.length() + 1;
+    msg->len = htons(id.length() + 1);
     strcpy(msg->payload, id.c_str());
-    int rc = send_all(tcp_sockfd, msg, sizeof(tcp_message));
+    int rc = send_all(tcp_sockfd, msg, sizeof(id_message));
     DIE(rc < 0, "Error sending id\n");
 
 
-    memset(msg, 0, sizeof(tcp_message));
-    rc = recv_all(tcp_sockfd, msg, sizeof(tcp_message));
+    memset(msg, 0, sizeof(id_message));
+    rc = recv_all(tcp_sockfd, msg, sizeof(id_message));
     DIE(rc < 0, "Error receiving OK status from server\n");
+
+    if (strcmp(msg->payload, "OK") == 0) {
+        cout << "OK\n";
+    } else {
+        cout << "NOT OK\n";
+    }
+
+    free(msg);
 
     return true;
 }

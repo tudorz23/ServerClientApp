@@ -32,4 +32,4 @@ clean:
 pack:
 	zip -FSr 323CA_Zaharia_Marius-Tudor_Tema2.zip Makefile *.cpp *.h README
 
-.PHONY:  build clean pack
+.PHONY: all clean pack

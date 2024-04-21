@@ -7,10 +7,13 @@
 #include <sys/types.h>
 
 
-#define MAX_MSG_SIZE 1510
+#define MAX_ID_SIZE 11
 
-// Used by the server to keep track of the clients that connect and disconnect
-// and of the topics they subscribe to and unsubscribe from.
+
+/**
+ * Used by the server to keep track of the clients that connect and
+ * disconnect and of the topics they subscribe to and unsubscribe from.
+ */
 struct client {
     // This will change when disconnecting and connecting again.
     int curr_fd;
@@ -18,9 +21,13 @@ struct client {
 };
 
 
-struct tcp_message {
+/**
+ * Used by the client to send its ID when trying to connect and
+ * by the server to send confirm status back to the client.
+ */
+struct id_message {
     size_t len;
-    char payload[MAX_MSG_SIZE];
+    char payload[MAX_ID_SIZE];
 };
 
 

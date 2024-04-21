@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "Subscriber.h"
 #include <arpa/inet.h>
+#include <cstring>
 
 using namespace std;
 
@@ -11,6 +12,11 @@ int main(int argc, char **argv) {
     if (argc != 4) {
         cout << "[SUBSCRIBER] Usage: " << argv[0];
         cout << " <CLIENT_ID> <SERVER_IP> <SERVER_PORT> \n";
+        return 1;
+    }
+
+    if (strlen(argv[1]) > 10) {
+        cout << "ID must have at most 10 characters\n";
         return 1;
     }
 
@@ -33,6 +39,8 @@ int main(int argc, char **argv) {
     subscriber->prepare();
 
     subscriber->check_validity();
+
+    delete subscriber;
 
     return 0;
 }
