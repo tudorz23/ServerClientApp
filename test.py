@@ -294,7 +294,7 @@ def start_and_check_client(server, id, restart=False, test=True):
   if not outs.startswith("New client C" + id + " connected from"):
     print("Error: server did not print that C" + id + " is connected")
     success = False
-  
+
   if success and test:
     pass_test("c" + id + ("_restart" if restart else "_start"))
 
@@ -341,7 +341,7 @@ def subscribe_to_topic(c, topic_name="", wildcard=""):
   """Sends subscribe command on a client"""
   c.send_input("subscribe " + topic_name + wildcard)
   outc = c.get_output_timeout(1)
-  if not outc.startswith("Subscribed to topic."):
+  if not outc.startswith("Subscribed to topic"):
     print("Error: C not subscribed to topic " + wildcard)
     return -1
 
@@ -403,7 +403,7 @@ def run_test_c1_subscribe_all(server, c1, topics):
   for topic in topics:
     c1.send_input("subscribe " + topic.name)
     outc1 = c1.get_output_timeout(1)
-    if not outc1.startswith("Subscribed to topic."):
+    if not outc1.startswith("Subscribed to topic"):
       print("Error: C1 not subscribed to all topics")
       failed = True
       break
@@ -491,7 +491,7 @@ def run_test_c2_subscribe(c2, topics):
 
   c2.send_input("subscribe " + topic.name)
   outc2 = c2.get_output_timeout(1)
-  if not outc2.startswith("Subscribed to topic."):
+  if not outc2.startswith("Subscribed to topic"):
     print("Error: C2 not subscribed to topic " + topic.name)
     return
 
@@ -519,7 +519,7 @@ def run_test_quick_flow(c1, topics):
 
   if not set_procfs_values(True, ["5", "5", "5"]):
     return
-  
+
   if not set_procfs_values(False, ["5", "5", "5"]):
     set_procfs_values(True, rmem)
     return
@@ -590,7 +590,7 @@ def run_test_c2_subscribe_plus_wildcard(c2, topics):
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
     return
-  
+
   # generate messages on topics
   run_udp_client(False, topics_to_generate, "sample_wildcard_payloads.json")
 
@@ -607,7 +607,7 @@ def run_test_c2_subscribe_plus_wildcard(c2, topics):
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
     return
-  
+
   # generate messages on topics
   topics_to_generate = ["6", "7", "5"]
   run_udp_client(False, topics_to_generate, "sample_wildcard_payloads.json")
@@ -634,7 +634,7 @@ def run_test_c2_subscribe_star_wildcard(c2, topics):
   wildcard = '*/pressure'
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
-      return
+    return
 
   # generate messages on topics
   topics_to_generate = ["8", "9", "7"]
@@ -654,7 +654,7 @@ def run_test_c2_subscribe_star_wildcard(c2, topics):
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
     return
-    
+
   # generate messages on topics
   topics_to_generate = ["1", "3", "2"]
   run_udp_client(False, topics_to_generate, "sample_wildcard_payloads.json")
@@ -673,7 +673,7 @@ def run_test_c2_subscribe_star_wildcard(c2, topics):
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
     return
-    
+
   # generate messages on topics
   topics_to_generate = ["1", "4", "6"]
   run_udp_client(False, topics_to_generate, "sample_wildcard_payloads.json")
@@ -716,7 +716,7 @@ def run_test_c2_subscribe_compound_wildcard(c2, topics):
   wildcard = 'upb/+/100/+'
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
-      return
+    return
 
   # generate messages on topics
   topics_to_generate = ["4", "5", "10"]
@@ -735,7 +735,7 @@ def run_test_c2_subscribe_compound_wildcard(c2, topics):
   wildcard = 'upb/+/100/*'
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
-      return
+    return
 
   # generate messages on topics
   topics_to_generate = ["9", "10", "0"]
@@ -755,7 +755,7 @@ def run_test_c2_subscribe_compound_wildcard(c2, topics):
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
     return
-    
+
   # generate messages on topics
   topics_to_generate = ["4", "5", "10", "0"]
   run_udp_client(False, topics_to_generate, "sample_wildcard_payloads.json")
@@ -775,10 +775,10 @@ def run_test_c2_subscribe_compound_wildcard(c2, topics):
   print("Subscribing C2 to topics " + wildcard)
   if subscribe_to_topic(c2, "", wildcard) == -1:
     return
-    
+
   # generate messages on topics
   run_udp_client(False, topics_to_generate, "sample_wildcard_payloads.json")
-  
+
   # run the checks
   success = success and check_subscriber_output(c2, "2", topics[4].print())
   success = success and check_subscriber_output(c2, "2", topics[5].print())
@@ -802,7 +802,7 @@ def run_test_c2_subscribe_wildcard_set_inclusion(c2, topics):
   print("Subscribing C2 to topics " + wildcards[0])
   if subscribe_to_topic(c2, "", wildcards[0]) == -1:
     return
-    
+
   wildcards.append('upb/precis/100/*')
   print("Subscribing C2 to topics " + wildcards[1])
   if subscribe_to_topic(c2, "", wildcards[1]) == -1:
@@ -846,7 +846,7 @@ def h2_test():
   # start a subscriber C1 and check it is running
   c1, success = run_test_c1_start(server)
 
-  if success:    
+  if success:
     # generate data and check that it isn't received by C1
     run_test_data_unsubscribed(server, c1)
 
