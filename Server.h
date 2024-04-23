@@ -77,11 +77,10 @@ class Server {
 
     /**
      * Sends response to the client who requested to connect.
-     * @param msg id_message struct buffer to put the message into
      * @param ok_status true to accept connection, false to decline
      * @param client_sockfd Socket to communicate with the requester
      */
-    void send_connection_response(id_message *msg, bool ok_status, int client_sockfd);
+    void send_connection_response(bool ok_status, int client_sockfd);
 
 
     /**

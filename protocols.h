@@ -6,8 +6,20 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+
 
 #define MAX_ID_SIZE 11
+
+#define CONNECT_REQ 0
+#define CONNECT_ACCEPTED 1
+#define CONNECT_DENIED 2
+#define EXIT 3
+#define SUBSCRIBE 4
+#define UNSUBSCRIBE 5
+#define MSG_FROM_UDP 6
 
 
 /**
@@ -21,30 +33,34 @@ struct client {
 };
 
 
-/**
- * Used by the client to send its ID when trying to connect and
- * by the server to send confirm status back to the client.
- */
-struct id_message {
-    size_t len;
-    char payload[MAX_ID_SIZE];
+struct tcp_message {
+    uint16_t command;
+    uint16_t len; // length of the payload
+    char *payload;
 };
 
 
+
 /**
- * Receives exactly len bytes from socket sockfd and
- * stores them into buffer.
- * @return Number of bytes received, -1 on error,
- * 0 if sender closed connection.
+ * Specialized send function that uses TCP's send().
+ * Sends a tcp_message struct, by first sending the command and the len,
+ * then sending the payload.
+ * @param sockfd Socket used to send the message
+ * @return Number of bytes sent on success, -1 on error
  */
-int recv_all(int sockfd, void *buffer, size_t len);
+int send_efficient(int sockfd, tcp_message *msg);
 
 
 /**
- * Sends exactly len bytes from buffer to socket sockfd.
- * @return Number of bytes sent or -1 on error.
+ * Specialized recv function that uses TCP's recv().
+ * Receives a tcp_message struct, by first receiving the command and the len,
+ * then allocating memory for the payload for the len it just received.
+ * Finally, it receives the payload.
+ * @param sockfd Socket used to receive the message
+ * @return Number of bytes received, on success, 0 if the sender closed
+ * the connection, -1 on error.
  */
-int send_all(int sockfd, void *buffer, size_t len);
+int recv_efficient(int sockfd, tcp_message *msg);
 
 
 #endif /* PROTOCOLS_H */

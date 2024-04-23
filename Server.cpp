@@ -23,7 +23,6 @@ Server::Server(uint16_t port) {
 
 Server::~Server() {
     // TODO: Close all clients.
-    cout << "Destructor called\n";
     cout << "Num pollfd is " << num_pollfds << "\n";
 }
 
@@ -100,7 +99,7 @@ void Server::prepare() {
 
 
 void Server::run() {
-    id_message *msg = (id_message*) calloc(1, sizeof(id_message));
+    tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
 
     while (true) {
@@ -134,9 +133,9 @@ void Server::run() {
 
             if (client_pollfd.revents & POLLIN) {
                 // Got message from client.
-                memset(msg, 0, sizeof(id_message));
-                rc = recv_all(client_pollfd.fd, msg, sizeof(id_message));
-                DIE(rc < 0, "recv failed\n");
+                memset(msg, 0, sizeof(tcp_message));
+                rc = recv_efficient(client_pollfd.fd, msg);
+                DIE(rc < 0, "Failed to receive message from the client\n");
 
                 if (rc == 0) {
                     // Connection has been closed.
@@ -183,19 +182,22 @@ bool Server::check_stdin_data() {
 }
 
 
-void Server::send_connection_response(id_message *msg, bool ok_status, int client_sockfd) {
-    memset(msg, 0, sizeof(id_message));
+void Server::send_connection_response(bool ok_status, int client_sockfd) {
+    tcp_message *msg = (tcp_message *) malloc(sizeof(tcp_message));
+    DIE(!msg, "malloc failed\n");
 
     if (ok_status) {
-        strcpy(msg->payload, "OK");
+        msg->command = CONNECT_ACCEPTED;
     } else {
-        strcpy(msg->payload, "NOT OK");
+        msg->command = CONNECT_DENIED;
     }
 
-    msg->len = htons(strlen(msg->payload) + 1);
+    msg->len = htons(0);
 
-    int rc = send_all(client_sockfd, msg, sizeof(id_message));
-    DIE(rc < 0, "Error sending confirmation\n");
+    int rc = send_efficient(client_sockfd, msg);
+    DIE(rc < 0, "Error sending connection response\n");
+
+    free(msg);
 }
 
 
@@ -221,24 +223,21 @@ void Server::manage_connection_request() {
     int rc = setsockopt(client_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
     DIE(rc < 0, "[SERVER] Nagle disabling for client failed.\n");
 
-    id_message *msg = (id_message*) malloc(sizeof(id_message));
-    DIE(!msg, "malloc failed\n");
+    tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
+    DIE(!msg, "calloc failed\n");
 
-    rc = recv_all(client_sockfd, msg, sizeof(id_message));
-    DIE(rc < 0, "recv failed\n");
+    rc = recv_efficient(client_sockfd, msg);
+    DIE(rc < 0, "Failed to receive client id\n");
 
-    char *new_id = (char *) malloc(ntohs(msg->len));
-    DIE(!new_id, "malloc failed\n");
+    string client_id = string(msg->payload);
 
-    strncpy(new_id, msg->payload, ntohs(msg->len));
-
-    string client_id = string(new_id);
-    free(new_id);
+    free(msg->payload);
+    free(msg);
 
     // Check if the id is already present in the id-client map.
     unordered_map<string, client*>::iterator it = clients.find(client_id);
     if (it == clients.end()) {
-        // It is a new client, so add it in the map.
+        // It is a new client, so add it to the map.
         client* new_client = (client *) malloc(sizeof(client));
         DIE(!new_client, "malloc failed\n");
 
@@ -251,12 +250,11 @@ void Server::manage_connection_request() {
         add_client_pollfd(client_sockfd);
 
         // Send confirmation.
-        send_connection_response(msg, true, client_sockfd);
+        send_connection_response(true, client_sockfd);
 
         cout << "New client " << client_id << " connected from "
             << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << ".\n";
 
-        free(msg);
         return;
     }
 
@@ -264,11 +262,10 @@ void Server::manage_connection_request() {
     client* database_client = it->second;
     if (database_client->is_connected) {
         // Send decline message to the client and tell it to exit.
-        send_connection_response(msg, false, client_sockfd);
+        send_connection_response(false, client_sockfd);
 
         cout << "Client " << client_id << " already connected.\n";
 
-        free(msg);
         return;
     }
 
@@ -280,12 +277,10 @@ void Server::manage_connection_request() {
     add_client_pollfd(client_sockfd);
 
     // Send confirmation.
-    send_connection_response(msg, true, client_sockfd);
+    send_connection_response(true, client_sockfd);
 
     cout << "New client " << client_id << " connected from "
          << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "\n";
-
-    free(msg);
 }
 
 

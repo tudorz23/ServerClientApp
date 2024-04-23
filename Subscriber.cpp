@@ -52,25 +52,35 @@ void Subscriber::prepare() {
 
 bool Subscriber::check_validity() {
     // Send client id to the server.
-    id_message *msg = (id_message*) calloc(1, sizeof(id_message));
-    DIE(!msg, "malloc failed\n");
+    tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
+    DIE(!msg, "calloc failed\n");
 
+    msg->command = CONNECT_REQ;
     msg->len = htons(id.length() + 1);
+
+    msg->payload = (char *) malloc(id.length() + 1);
+    DIE(!msg->payload, "malloc failed\n");
     strcpy(msg->payload, id.c_str());
-    int rc = send_all(tcp_sockfd, msg, sizeof(id_message));
-    DIE(rc < 0, "Error sending id\n");
+
+    int rc = send_efficient(tcp_sockfd, msg);
+    DIE(rc < 0, "Error sending id to the server\n");
+
+    free(msg->payload);
+    memset(msg, 0, sizeof(tcp_message));
 
     // Receive response regarding acceptance from server.
-    memset(msg, 0, sizeof(id_message));
-    rc = recv_all(tcp_sockfd, msg, sizeof(id_message));
-    DIE(rc < 0, "Error receiving OK status from server\n");
+    rc = recv_efficient(tcp_sockfd, msg);
+    DIE(rc < 0, "Error receiving connect confirmation from the server\n");
 
-    cout << msg->payload << "\n";
+    if (msg->command == CONNECT_ACCEPTED) {
+        cout << "Connection accepted\n";
 
-    if (strcmp(msg->payload, "OK") == 0) {
         free(msg);
         return true;
     }
+
+    // Connect denied.
+    cout << "Connection denied\n";
 
     free(msg);
     return false;

@@ -1,49 +1,108 @@
 #include "protocols.h"
 
+#include <cstdlib>
+#include "utils.h"
 
 
+int recv_efficient(int sockfd, tcp_message *msg) {
+    int total_bytes_received = 0;
+    int bytes_recv;
+    int bytes_remaining;
+    uint8_t *buff;
 
-int recv_all(int sockfd, void *buffer, size_t len) {
-    int bytes_received;
-    size_t bytes_remaining = len;
-    char *aux_buffer = (char *) buffer;
+    // Firstly, receive the command and the len.
+    bytes_remaining = sizeof(msg->command) + sizeof(msg->len);
+    buff = (uint8_t *) msg;
 
     while (bytes_remaining) {
-        bytes_received = recv(sockfd, aux_buffer, bytes_remaining, 0);
-        if (bytes_received < 0) {
+        bytes_recv = recv(sockfd, buff, bytes_remaining, 0);
+        if (bytes_recv < 0) {
             // Error.
             return -1;
         }
 
-        if (bytes_received == 0) {
+        if (bytes_recv == 0) {
             // Connection closed.
             return 0;
         }
 
-        bytes_remaining -= bytes_received;
-        aux_buffer += bytes_received;
+        total_bytes_received += bytes_recv;
+        buff += bytes_recv;
+        bytes_remaining -= bytes_recv;
     }
 
-    return len;
+    msg->len = ntohs(msg->len);
+
+    // If len is 0, no payload should be received.
+    if (msg->len == 0) {
+        return total_bytes_received;
+    }
+
+    // Now, receive the payload, but firstly allocate memory for it.
+    msg->payload = (char *) malloc(msg->len);
+    DIE(!msg->payload, "malloc failed\n");
+
+    bytes_remaining = msg->len;
+    buff = (uint8_t *) msg->payload;
+
+    while (bytes_remaining) {
+        bytes_recv = recv(sockfd, buff, bytes_remaining, 0);
+        if (bytes_recv < 0) {
+            // Error.
+            return -1;
+        }
+
+        if (bytes_recv == 0) {
+            // Connection closed.
+            return 0;
+        }
+
+        total_bytes_received += bytes_recv;
+        buff += bytes_recv;
+        bytes_remaining -= bytes_recv;
+    }
+
+    return total_bytes_received;
 }
 
 
-int send_all(int sockfd, void *buffer, size_t len) {
+int send_efficient(int sockfd, tcp_message *msg) {
+    int total_bytes_sent = 0;
     int bytes_sent;
-    size_t bytes_remaining = len;
-    char *aux_buffer = (char *) buffer;
+    int bytes_remaining;
+    uint8_t *buff;
+
+    // Firstly, send the command and the len.
+    bytes_remaining = sizeof(msg->command) + sizeof(msg->len);
+    buff = (uint8_t *) msg;
 
     while (bytes_remaining) {
-        bytes_sent = send(sockfd, aux_buffer, bytes_remaining, 0);
+        bytes_sent = send(sockfd, buff, bytes_remaining, 0);
         if (bytes_sent < 0) {
             // Error.
             return -1;
         }
 
         bytes_remaining -= bytes_sent;
-        aux_buffer += bytes_sent;
+        total_bytes_sent += bytes_sent;
+        buff += bytes_sent;
     }
 
-    return len;
-}
+    // Now, send the payload.
+    bytes_remaining = ntohs(msg->len);
+    buff = (uint8_t *) msg->payload;
 
+    while (bytes_remaining) {
+        bytes_sent = send(sockfd, buff, bytes_remaining, 0);
+        if (bytes_sent < 0) {
+            // Error.
+            return -1;
+        }
+
+        bytes_remaining -= bytes_sent;
+        total_bytes_sent += bytes_sent;
+        buff += bytes_sent;
+    }
+
+    return total_bytes_sent;
+}
