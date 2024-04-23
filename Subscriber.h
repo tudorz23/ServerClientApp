@@ -6,6 +6,8 @@
 #include <vector>
 #include <poll.h>
 
+#include "protocols.h"
+
 
 class Subscriber {
  private:
@@ -49,6 +51,9 @@ class Subscriber {
 
 
     bool manage_stdin_data();
+
+
+    bool manage_tcp_data(tcp_message *msg);
 };
 
 

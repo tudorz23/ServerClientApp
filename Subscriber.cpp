@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 #include "utils.h"
-#include "protocols.h"
 #include <cstdlib>
 
 using namespace std;
@@ -99,6 +98,9 @@ void Subscriber::run() {
     poll_fds.push_back(stdin_pollfd);
     poll_fds.push_back(tcp_pollfd);
 
+    tcp_message *msg = (tcp_message *) calloc(1, sizeof(tcp_message));
+    DIE(!msg, "calloc failed\n");
+
     while (true) {
         int rc = poll(poll_fds.data(), poll_fds.size(), -1);
         DIE(rc < 0, "[SUBSCRIBER] poll failed.\n");
@@ -106,6 +108,15 @@ void Subscriber::run() {
         if (poll_fds[0].revents & POLLIN) {
             // Received something from stdin.
             if (manage_stdin_data()) {
+                free(msg);
+                break;
+            }
+        }
+
+        if (poll_fds[1].revents & POLLIN) {
+            // Got message from server.
+            if (manage_tcp_data(msg)) {
+                free(msg);
                 break;
             }
         }
@@ -119,6 +130,21 @@ bool Subscriber::manage_stdin_data() {
     getline(cin, stdin_data, '\n');
 
     if (stdin_data == "exit") {
+        return true;
+    }
+
+    return false;
+}
+
+
+bool Subscriber::manage_tcp_data(tcp_message *msg) {
+    memset(msg, 0, sizeof(tcp_message));
+
+    int rc = recv_efficient(tcp_sockfd, msg);
+    DIE(rc < 0, "Failed to receive message from the server\n");
+
+    if (rc == 0) {
+        // Connection has been closed.
         return true;
     }
 

@@ -22,8 +22,15 @@ Server::Server(uint16_t port) {
 
 
 Server::~Server() {
-    // TODO: Close all clients.
-    cout << "Num pollfd is " << num_pollfds << "\n";
+    // Close all the fds (except STDIN_FILENO).
+    for (int i = 1; i < num_pollfds; i++) {
+        close(poll_fds[i].fd);
+    }
+
+    // Free all the client structures.
+    for (auto &entry : clients) {
+        free(entry.second);
+    }
 }
 
 
