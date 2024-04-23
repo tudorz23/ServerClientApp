@@ -229,5 +229,9 @@ bool Subscriber::manage_tcp_data(tcp_message *msg) {
         return true;
     }
 
+    // Got a message from the server.
+    cout << msg->payload << "\n";
+    free(msg->payload);
+
     return false;
 }

@@ -12,7 +12,7 @@
 #include <vector>
 #include <string>
 
-#define MAX_UDP_MSG 1552
+#define MAX_UDP_MSG 1600
 
 #define CONNECT_REQ 0
 #define CONNECT_ACCEPTED 1

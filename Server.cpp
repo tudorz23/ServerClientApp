@@ -111,6 +111,7 @@ void Server::run() {
     DIE(!msg, "calloc failed\n");
 
     char udp_msg[MAX_UDP_MSG];
+    char formatted_msg[MAX_UDP_MSG];
 
     while (true) {
         // Use vector::data to access the start of the memory zone
@@ -126,7 +127,7 @@ void Server::run() {
         }
 
         if (poll_fds[1].revents & POLLIN) {
-            manage_udp_message(poll_fds[1].fd, udp_msg);
+            manage_udp_message(poll_fds[1].fd, udp_msg, formatted_msg);
         }
 
         if (poll_fds[2].revents & POLLIN) {
@@ -370,57 +371,92 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
 }
 
 
-void Server::manage_udp_message(int client_fd, char *buff) {
+void Server::manage_udp_message(int client_fd, char *buff, char *formatted_msg) {
     struct sockaddr_in udp_client_addr;
     socklen_t udp_len = sizeof(udp_client_addr);
 
     memset(buff, 0, MAX_UDP_MSG);
+    memset(formatted_msg, 0, MAX_UDP_MSG);
 
     int rc = recvfrom(client_fd, buff, MAX_UDP_MSG, 0,
                       (struct sockaddr*) &udp_client_addr, &udp_len);
     DIE(rc < 0, "Error receiving from UDP client\n");
 
+    // Get the topic from the received buff.
+    char topic[51];
+    memcpy(topic, buff, 50);
+    topic[50] = '\0';
+
+    // Data type from the received buff.
+    uint8_t data_type = buff[50];
+
+    rc = interpret_udp_payload((int) data_type, buff + 51, topic, udp_client_addr,
+                          formatted_msg);
+    if (rc) {
+        send_msg_if_subscribed(topic, formatted_msg);
+        cout << "Sent msg: " << formatted_msg << "\n\n";
+    }
+}
+
+
+int Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic,
+                                    struct sockaddr_in &udp_client_addr, char *buffer) {
     char *client_ip = inet_ntoa(udp_client_addr.sin_addr);
     uint16_t client_port = htons(udp_client_addr.sin_port);
 
-    string topic(buff);
+    sprintf(buffer, "%s:%hu - ", client_ip, client_port);
+    sprintf(buffer + strlen(buffer), "%s - ", topic);
 
-    uint8_t int_data = buff[50];
-
-    cout << "Topic is: " << topic << "\n";
-
-    switch ((int) int_data) {
+    switch (data_type) {
         case 0:
-            uint8_t sign = buff[51];
-
+            uint8_t sign = udp_payload[0];
             uint32_t number = 0;
-            memcpy(&number, buff + 52, sizeof(uint32_t));
+            memcpy(&number, udp_payload + 1, sizeof(uint32_t));
 
             number = ntohl(number);
 
-            cout << "Data type is INT and data is: ";
             if (sign == 1) {
-                cout << "-";
-            }
-            cout << number << "\n";
-
-//            tcp_message* msg = (tcp_message *) calloc(1, sizeof(tcp_message));
-//            DIE(!msg, "calloc failed\n");
-//
-//            msg->command = MSG_FROM_UDP;
-
-            char buffer[80];
-            sprintf(buffer, "%s:%hu - ", client_ip, client_port);
-            sprintf(buffer + strlen(buffer), "%s - INT - ", topic.c_str());
-
-            if (sign == 1) {
-                sprintf(buffer + strlen(buffer), "-");
+                number *= -1;
             }
 
-            sprintf(buffer + strlen(buffer), "%d", number);
-
-            cout << buffer << "\n";
-
+            sprintf(buffer + strlen(buffer), "INT - %d", number);
+            //cout << buffer << "\n";
+            return 1;
             break;
     }
+    return 0;
+}
+
+
+void Server::send_msg_if_subscribed(char *topic, char *formatted_msg) {
+    string string_topic(topic);
+
+    tcp_message *msg = (tcp_message *) calloc(1, sizeof(tcp_message));
+    DIE(!msg, "calloc failed\n");
+
+    msg->command = MSG_FROM_UDP;
+    msg->len = strlen(formatted_msg) + 1;
+    msg->payload = (char *) calloc(1, msg->len);
+    DIE(!msg->payload, "calloc failed\n");
+
+    strcpy(msg->payload, formatted_msg);
+
+    for (auto &entry : clients) {
+        client *curr_client = entry.second;
+        if (!curr_client->is_connected) {
+            continue;
+        }
+
+        auto it = find(curr_client->subscribed_topics.begin(),
+                       curr_client->subscribed_topics.end(), string_topic);
+        if (it == curr_client->subscribed_topics.end()) {
+            continue;
+        }
+
+        // Send the message to this client.
+        send_efficient(curr_client->curr_fd, msg);
+    }
+
+    free(msg->payload);
+    free(msg);
 }
