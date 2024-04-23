@@ -91,6 +91,9 @@ class Server {
 
 
     std::pair<std::string, client*> get_client_from_fd(int fd);
+
+
+    void manage_subscribe_unsubscribe(int client_fd, tcp_message *msg_req);
 };
 
 

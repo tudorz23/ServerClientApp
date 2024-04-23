@@ -55,9 +55,9 @@ bool Subscriber::check_validity() {
     DIE(!msg, "calloc failed\n");
 
     msg->command = CONNECT_REQ;
-    msg->len = htons(id.length() + 1);
+    msg->len = id.length() + 1;
 
-    msg->payload = (char *) malloc(id.length() + 1);
+    msg->payload = (char *) malloc(msg->len);
     DIE(!msg->payload, "malloc failed\n");
     strcpy(msg->payload, id.c_str());
 
@@ -124,7 +124,51 @@ void Subscriber::run() {
 }
 
 
+void Subscriber::subscribe_unsubscribe_topic(uint16_t command, char *topic) {
+    tcp_message *msg = (tcp_message *) calloc(1, sizeof(tcp_message));
+    DIE(!msg, "calloc failed\n");
+
+    msg->command = command;
+    msg->len = strlen(topic) + 1;
+    msg->payload = (char *) malloc(msg->len);
+    DIE(!msg->payload, "malloc failed\n");
+
+    strcpy(msg->payload, topic);
+
+    // Send the subscribe request to the server.
+    int rc = send_efficient(tcp_sockfd, msg);
+    DIE(rc < 0, "Error sending subscribe/unsubscribe request to the server\n");
+
+    free(msg->payload);
+    memset(msg, 0, sizeof(tcp_message));
+
+    // Wait for confirmation from the server.
+    rc = recv_efficient(tcp_sockfd, msg);
+    DIE(rc < 0, "Error receiving subscribe confirm from the server\n");
+
+    if (command == SUBSCRIBE_REQ) {
+        if (msg->command == SUBSCRIBE_SUCC) {
+            cout << "Subscribed to topic " << topic << "\n";
+        } else {
+            cout << "Already subscribed to topic " << topic << "\n";
+        }
+
+        free(msg);
+        return;
+    }
+
+    if (msg->command == UNSUBSCRIBE_SUCC) {
+        cout << "Unsubscribed from topic " << topic << "\n";
+    } else {
+        cout << "Not subscribed to topic " << topic << "cannot unsubscribe\n";
+    }
+
+    free(msg);
+}
+
+
 bool Subscriber::manage_stdin_data() {
+    // Use string so the user can input data as long as wanted.
     string stdin_data;
 
     getline(cin, stdin_data, '\n');
@@ -133,6 +177,43 @@ bool Subscriber::manage_stdin_data() {
         return true;
     }
 
+    char *helper = strdup(stdin_data.c_str());
+    DIE(!helper, "strdup failed\n");
+
+    char *command = strtok(helper, " ");
+
+    if (strcmp(command, "subscribe") == 0) {
+        char *topic = strtok(NULL, "\n ");
+
+        if (!topic || strlen(topic) > 50) {
+            cout << "Invalid topic. Topic must have at most 50 characters.\n";
+            free(helper);
+            return false;
+        }
+
+        subscribe_unsubscribe_topic(SUBSCRIBE_REQ, topic);
+//        cout << topic << "\n";
+        free(helper);
+        return false;
+    }
+
+    if (strcmp(command, "unsubscribe") == 0) {
+        char *topic = strtok(NULL, "\n ");
+
+        if (!topic || strlen(topic) > 50) {
+            cout << "Invalid topic. Topic must have at most 50 characters.\n";
+            free(helper);
+            return false;
+        }
+
+        subscribe_unsubscribe_topic(UNSUBSCRIBE_REQ, topic);
+//        cout << "Wants to unsubscribe from topic " << topic << "\n";
+        free(helper);
+        return false;
+    }
+
+    free(helper);
+    cout << "Accepted commands: <exit> <subscribe> <unsubscribe>\n";
     return false;
 }
 

@@ -31,6 +31,7 @@ int recv_efficient(int sockfd, tcp_message *msg) {
         bytes_remaining -= bytes_recv;
     }
 
+    msg->command = ntohs(msg->command);
     msg->len = ntohs(msg->len);
 
     // If len is 0, no payload should be received.
@@ -71,6 +72,9 @@ int send_efficient(int sockfd, tcp_message *msg) {
     int bytes_sent;
     int bytes_remaining;
     uint8_t *buff;
+
+    msg->command = htons(msg->command);
+    msg->len = htons(msg->len);
 
     // Firstly, send the command and the len.
     bytes_remaining = sizeof(msg->command) + sizeof(msg->len);

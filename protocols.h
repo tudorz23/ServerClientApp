@@ -9,17 +9,20 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <vector>
+#include <string>
 
-
-#define MAX_ID_SIZE 11
 
 #define CONNECT_REQ 0
 #define CONNECT_ACCEPTED 1
 #define CONNECT_DENIED 2
-#define EXIT 3
-#define SUBSCRIBE 4
-#define UNSUBSCRIBE 5
-#define MSG_FROM_UDP 6
+#define SUBSCRIBE_REQ 3
+#define UNSUBSCRIBE_REQ 4
+#define SUBSCRIBE_SUCC 5
+#define SUBSCRIBE_FAIL 6
+#define UNSUBSCRIBE_SUCC 7
+#define UNSUBSCRIBE_FAIL 8
+#define MSG_FROM_UDP 9
 
 
 /**
@@ -30,6 +33,7 @@ struct client {
     // This will change when disconnecting and connecting again.
     int curr_fd;
     bool is_connected;
+    std::vector<std::string> subscribed_topics;
 };
 
 
@@ -45,6 +49,8 @@ struct tcp_message {
  * Specialized send function that uses TCP's send().
  * Sends a tcp_message struct, by first sending the command and the len,
  * then sending the payload.
+ * Arranges command ad len in network order before sending, so the caller
+ * doesn't have to do it.
  * @param sockfd Socket used to send the message
  * @return Number of bytes sent on success, -1 on error
  */
@@ -56,6 +62,7 @@ int send_efficient(int sockfd, tcp_message *msg);
  * Receives a tcp_message struct, by first receiving the command and the len,
  * then allocating memory for the payload for the len it just received.
  * Finally, it receives the payload.
+ * Arranges command and len in host order.
  * @param sockfd Socket used to receive the message
  * @return Number of bytes received, on success, 0 if the sender closed
  * the connection, -1 on error.

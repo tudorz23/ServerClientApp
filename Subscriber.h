@@ -50,6 +50,9 @@ class Subscriber {
     void run();
 
 
+    void subscribe_unsubscribe_topic(uint16_t command, char *topic);
+
+
     bool manage_stdin_data();
 
 

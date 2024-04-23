@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "protocols.h"
 #include <cstdlib>
+#include <algorithm>
 
 #define LISTEN_BACKLOG 50
 
@@ -29,7 +30,7 @@ Server::~Server() {
 
     // Free all the client structures.
     for (auto &entry : clients) {
-        free(entry.second);
+        delete entry.second;
     }
 }
 
@@ -136,6 +137,8 @@ void Server::run() {
         while (it != poll_fds.end()) {
             pollfd client_pollfd = *it;
 
+            // Flag to know if a pollfd has been deleted,
+            // so the iterator is not incremented.
             bool deleted = false;
 
             if (client_pollfd.revents & POLLIN) {
@@ -151,16 +154,17 @@ void Server::run() {
                     client* exiting_client = entry.second;
                     // Mark client as disconnected.
                     exiting_client->is_connected = false;
-                    exiting_client->curr_fd = -1;
+                    exiting_client->curr_fd = -1; // the fd is not useful anymore
 
                     close(client_pollfd.fd);
                     it = poll_fds.erase(it);
                     num_pollfds--;
+                    deleted = true;
 
                     cout << "Client " << entry.first << " disconnected.\n";
-                    deleted = true;
                 } else {
-                    // TODO: Get the message.
+                    manage_subscribe_unsubscribe(client_pollfd.fd, msg);
+                    free(msg->payload);
                 }
             }
 
@@ -199,7 +203,7 @@ void Server::send_connection_response(bool ok_status, int client_sockfd) {
         msg->command = CONNECT_DENIED;
     }
 
-    msg->len = htons(0);
+    msg->len = 0;
 
     int rc = send_efficient(client_sockfd, msg);
     DIE(rc < 0, "Error sending connection response\n");
@@ -245,8 +249,13 @@ void Server::manage_connection_request() {
     unordered_map<string, client*>::iterator it = clients.find(client_id);
     if (it == clients.end()) {
         // It is a new client, so add it to the map.
-        client* new_client = (client *) malloc(sizeof(client));
-        DIE(!new_client, "malloc failed\n");
+        client* new_client;
+        try {
+            new_client = new client();
+        } catch (bad_alloc &exception) {
+            fprintf(stderr, "Client allocation failed\n");
+            exit(-1);
+        }
 
         new_client->curr_fd = client_sockfd;
         new_client->is_connected = true;
@@ -301,4 +310,55 @@ pair<string, client*> Server::get_client_from_fd(int fd) {
     // Never reached.
     pair<string, client*> placeholder("placeholder", NULL);
     return placeholder;
+}
+
+
+void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
+    string topic(req_msg->payload);
+    client *req_client = get_client_from_fd(client_fd).second;
+    int rc;
+
+    tcp_message *ans_msg = (tcp_message *) calloc(1, sizeof(tcp_message));
+    DIE(!ans_msg, "calloc failed\n");
+    ans_msg->len = 0; // will not send any payload.
+
+    vector<string>::iterator it = find(req_client->subscribed_topics.begin(),
+                                      req_client->subscribed_topics.end(), topic);
+
+    if (req_msg->command == SUBSCRIBE_REQ) {
+        if (it != req_client->subscribed_topics.end()) {
+            // Client is already subscribed to the topic.
+            ans_msg->command = SUBSCRIBE_FAIL;
+            rc = send_efficient(client_fd, ans_msg);
+            DIE(rc < 0, "Failed to send error msg for subscribe\n");
+
+            free(ans_msg);
+            return;
+        }
+
+        req_client->subscribed_topics.push_back(topic);
+        ans_msg->command = SUBSCRIBE_SUCC;
+        rc = send_efficient(client_fd, ans_msg);
+        DIE(rc < 0, "Failed to send success msg for subscribe\n");
+
+        free(ans_msg);
+        return;
+    }
+
+    // UNSUBSCRIBE_REQ
+    if (it == req_client->subscribed_topics.end()) {
+        ans_msg->command = UNSUBSCRIBE_FAIL;
+        rc = send_efficient(client_fd, ans_msg);
+        DIE(rc < 0, "Failed to send error msg for unsubscribe\n");
+
+        free(ans_msg);
+        return;
+    }
+
+    req_client->subscribed_topics.erase(it);
+    ans_msg->command = UNSUBSCRIBE_SUCC;
+    rc = send_efficient(client_fd, ans_msg);
+    DIE(rc < 0, "Failed to send success msg for unsubscribe\n");
+
+    free(ans_msg);
 }
