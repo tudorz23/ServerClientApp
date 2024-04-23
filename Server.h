@@ -69,13 +69,6 @@ class Server {
 
 
     /**
-     * Manages new connection requests. Accept if the client had not been
-     * previously registered of it it tries to reconnect, decline otherwise.
-     */
-    void manage_connection_request();
-
-
-    /**
      * Sends response to the client who requested to connect.
      * @param ok_status true to accept connection, false to decline
      * @param client_sockfd Socket to communicate with the requester
@@ -93,7 +86,17 @@ class Server {
     std::pair<std::string, client*> get_client_from_fd(int fd);
 
 
+    /**
+     * Manages new connection requests. Accept if the client had not been
+     * previously registered of it it tries to reconnect, decline otherwise.
+     */
+    void manage_connection_request();
+
+
     void manage_subscribe_unsubscribe(int client_fd, tcp_message *msg_req);
+
+
+    void manage_udp_message(int client_fd, char *buff);
 };
 
 

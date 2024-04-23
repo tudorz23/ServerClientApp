@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 
+#define MAX_UDP_MSG 1552
 
 #define CONNECT_REQ 0
 #define CONNECT_ACCEPTED 1
@@ -42,7 +43,6 @@ struct tcp_message {
     uint16_t len; // length of the payload
     char *payload;
 };
-
 
 
 /**

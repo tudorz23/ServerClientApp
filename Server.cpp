@@ -110,6 +110,8 @@ void Server::run() {
     tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
 
+    char udp_msg[MAX_UDP_MSG];
+
     while (true) {
         // Use vector::data to access the start of the memory zone
         // internally used by the vector.
@@ -121,6 +123,10 @@ void Server::run() {
             if (check_stdin_data()) {
                 break;
             }
+        }
+
+        if (poll_fds[1].revents & POLLIN) {
+            manage_udp_message(poll_fds[1].fd, udp_msg);
         }
 
         if (poll_fds[2].revents & POLLIN) {
@@ -361,4 +367,60 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
     DIE(rc < 0, "Failed to send success msg for unsubscribe\n");
 
     free(ans_msg);
+}
+
+
+void Server::manage_udp_message(int client_fd, char *buff) {
+    struct sockaddr_in udp_client_addr;
+    socklen_t udp_len = sizeof(udp_client_addr);
+
+    memset(buff, 0, MAX_UDP_MSG);
+
+    int rc = recvfrom(client_fd, buff, MAX_UDP_MSG, 0,
+                      (struct sockaddr*) &udp_client_addr, &udp_len);
+    DIE(rc < 0, "Error receiving from UDP client\n");
+
+    char *client_ip = inet_ntoa(udp_client_addr.sin_addr);
+    uint16_t client_port = htons(udp_client_addr.sin_port);
+
+    string topic(buff);
+
+    uint8_t int_data = buff[50];
+
+    cout << "Topic is: " << topic << "\n";
+
+    switch ((int) int_data) {
+        case 0:
+            uint8_t sign = buff[51];
+
+            uint32_t number = 0;
+            memcpy(&number, buff + 52, sizeof(uint32_t));
+
+            number = ntohl(number);
+
+            cout << "Data type is INT and data is: ";
+            if (sign == 1) {
+                cout << "-";
+            }
+            cout << number << "\n";
+
+//            tcp_message* msg = (tcp_message *) calloc(1, sizeof(tcp_message));
+//            DIE(!msg, "calloc failed\n");
+//
+//            msg->command = MSG_FROM_UDP;
+
+            char buffer[80];
+            sprintf(buffer, "%s:%hu - ", client_ip, client_port);
+            sprintf(buffer + strlen(buffer), "%s - INT - ", topic.c_str());
+
+            if (sign == 1) {
+                sprintf(buffer + strlen(buffer), "-");
+            }
+
+            sprintf(buffer + strlen(buffer), "%d", number);
+
+            cout << buffer << "\n";
+
+            break;
+    }
 }
