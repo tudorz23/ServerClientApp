@@ -169,7 +169,7 @@ bool Subscriber::manage_stdin_data() {
     // Use string so the user can input data as long as wanted.
     string stdin_data;
 
-    getline(cin, stdin_data, '\n');
+    getline(cin, stdin_data);
 
     if (stdin_data == "exit") {
         return true;

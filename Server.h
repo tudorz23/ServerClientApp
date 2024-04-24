@@ -102,7 +102,13 @@ class Server {
     bool interpret_udp_payload(int data_type, char *udp_payload, char *topic,
                                 struct sockaddr_in &udp_client_addr, char *buffer);
 
+
     void send_msg_if_subscribed(char *topic, char *formatted_msg);
+
+
+    void tokenize_topic(std::string &topic, std::vector<std::string> &tokens);
+
+    void printTokens(const std::string &topic, std::vector<std::string> &tokens);
 };
 
 

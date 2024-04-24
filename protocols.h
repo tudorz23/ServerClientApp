@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <vector>
 #include <string>
+#include <map>
 
 #define MAX_UDP_MSG 1600
 
@@ -34,7 +35,9 @@ struct client {
     // This will change when disconnecting and connecting again.
     int curr_fd;
     bool is_connected;
-    std::vector<std::string> subscribed_topics;
+
+    // <topic, tokens> map
+    std::map<std::string, std::vector<std::string>> subscribed_topics;
 };
 
 

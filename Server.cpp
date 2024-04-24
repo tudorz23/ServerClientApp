@@ -9,6 +9,7 @@
 #include "protocols.h"
 #include <cstdlib>
 #include <algorithm>
+#include <sstream>
 
 #define LISTEN_BACKLOG 50
 
@@ -189,7 +190,7 @@ bool Server::check_stdin_data() {
     // Use string so the user can input data as long as wanted.
     string stdin_data;
 
-    getline(cin, stdin_data, '\n');
+    getline(cin, stdin_data);
 
     if (stdin_data == "exit") {
         return true;
@@ -330,8 +331,8 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
     DIE(!ans_msg, "calloc failed\n");
     ans_msg->len = 0; // will not send any payload.
 
-    vector<string>::iterator it = find(req_client->subscribed_topics.begin(),
-                                      req_client->subscribed_topics.end(), topic);
+    map<string, vector<string>>::iterator it;
+    it = req_client->subscribed_topics.find(topic);
 
     if (req_msg->command == SUBSCRIBE_REQ) {
         if (it != req_client->subscribed_topics.end()) {
@@ -344,7 +345,11 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
             return;
         }
 
-        req_client->subscribed_topics.push_back(topic);
+        // Subscribe to the new topic.
+        vector<string> tokens;
+        tokenize_topic(topic, tokens);
+        req_client->subscribed_topics.insert({topic, tokens});
+
         ans_msg->command = SUBSCRIBE_SUCC;
         rc = send_efficient(client_fd, ans_msg);
         DIE(rc < 0, "Failed to send success msg for subscribe\n");
@@ -483,8 +488,7 @@ void Server::send_msg_if_subscribed(char *topic, char *formatted_msg) {
             continue;
         }
 
-        auto it = find(curr_client->subscribed_topics.begin(),
-                       curr_client->subscribed_topics.end(), string_topic);
+        auto it = curr_client->subscribed_topics.find( string_topic);
         if (it == curr_client->subscribed_topics.end()) {
             continue;
         }
@@ -495,4 +499,25 @@ void Server::send_msg_if_subscribed(char *topic, char *formatted_msg) {
 
     free(msg->payload);
     free(msg);
+}
+
+
+void Server::tokenize_topic(string &topic, vector<string> &tokens) {
+    char delim = '/';
+    stringstream topic_stream(topic);
+    string token;
+
+    while (getline(topic_stream, token, delim)) {
+        tokens.push_back(token);
+    }
+}
+
+
+void Server::printTokens(const string &topic, vector<string> &tokens) {
+    cout << "Topic is: " << topic << "\n";
+    cout << "Tokens are: ";
+    for (auto &tok : tokens) {
+        cout << tok << " ";
+    }
+    cout <<"\n\n";
 }
