@@ -41,6 +41,12 @@ class Server {
 
 
     /**
+     * Returns a new sockaddr_in struct with the basic IPv4 specifications.
+     */
+    struct sockaddr_in fill_sockaddr();
+
+
+    /**
      * Initializes the UDP socket.
      */
 	void prepare_udp_socket();
@@ -126,7 +132,7 @@ class Server {
      * determining if they match (considering the wildcards).
      * @param old_tokens Tokens from a topic the client is subscribed to
      * (might contain wildcards)
-     * @param new_tokens Tokens of a querried topic
+     * @param new_tokens Tokens of a queried topic
      * @param star_str The string "*"
      * @param plus_str The string "+"
      * @return true, if the two vectors match, false, otherwise
@@ -134,8 +140,6 @@ class Server {
     bool compare_token_vectors(std::vector<std::string> &old_tokens,
                                std::vector<std::string> &new_tokens,
                                std::string &star_str, std::string &plus_str);
-
-    void printTokens(const std::string &topic, std::vector<std::string> &tokens);
 };
 
 

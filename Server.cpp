@@ -35,6 +35,18 @@ Server::~Server() {
 }
 
 
+struct sockaddr_in Server::fill_sockaddr() {
+    struct sockaddr_in new_addr;
+    memset(&new_addr, 0, sizeof(struct sockaddr_in));
+
+    new_addr.sin_family = AF_INET;
+    new_addr.sin_addr.s_addr = INADDR_ANY;
+    new_addr.sin_port = htons(port);
+
+    return new_addr;
+}
+
+
 void Server::prepare_udp_socket() {
     // Create UDP socket.
     udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -46,7 +58,7 @@ void Server::prepare_udp_socket() {
     DIE(rc < 0, "[SERVER]: setsockopt() for UDP failed.\n");
 
     // Fill sockaddr_in structure details.
-    struct sockaddr_in udp_addr = fill_sockaddr(port);
+    struct sockaddr_in udp_addr = fill_sockaddr();
 
     // Bind the UDP socket to the address.
     rc = bind(udp_sockfd, (const struct sockaddr *)&udp_addr, sizeof(udp_addr));
@@ -65,7 +77,7 @@ void Server::prepare_tcp_socket() {
     DIE(rc < 0, "[SERVER]: setsockopt() for TCP failed.\n");
 
     // Fill sockaddr_in structure details.
-    struct sockaddr_in tcp_addr = fill_sockaddr(port);
+    struct sockaddr_in tcp_addr = fill_sockaddr();
 
     // Bind the TCP socket to the address.
     rc = bind(tcp_sockfd, (const struct sockaddr *)&tcp_addr, sizeof(tcp_addr));
@@ -593,12 +605,3 @@ bool Server::compare_token_vectors(vector<string> &old_tokens, vector<string> &n
     return true;
 }
 
-
-void Server::printTokens(const string &topic, vector<string> &tokens) {
-    cout << "Topic is: " << topic << "\n";
-    cout << "Tokens are: ";
-    for (auto &tok : tokens) {
-        cout << tok << " ";
-    }
-    cout <<"\n\n";
-}
