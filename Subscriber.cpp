@@ -227,7 +227,7 @@ bool Subscriber::manage_tcp_data(tcp_message *msg) {
 
     // Got a message from the server.
     if (msg->command != MSG_FROM_UDP) {
-        fprintf(stderr, "Something really bad happened\n");
+        fprintf(stderr, "Big error: message is not coming from UDP\n");
         free(msg->payload);
         return false;
     }

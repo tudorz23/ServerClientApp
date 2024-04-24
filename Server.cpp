@@ -509,7 +509,8 @@ void Server::send_msg_if_subscribed(char *topic, char *formatted_msg) {
         }
 
         // Send the message to this client.
-        send_efficient(curr_client->curr_fd, msg);
+        int rc = send_efficient(curr_client->curr_fd, msg);
+        DIE(rc < 0, "Error sending message from UDP to TCP client\n");
     }
 
     free(msg->payload);

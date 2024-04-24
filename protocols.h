@@ -52,8 +52,11 @@ struct tcp_message {
  * Specialized send function that uses TCP's send().
  * Sends a tcp_message struct, by first sending the command and the len,
  * then sending the payload.
- * Arranges command ad len in network order before sending, so the caller
- * doesn't have to do it.
+ *
+ * Arranges command and len in network order before sending, so the caller
+ * doesn't have to do it, but then puts them back in host order, so the
+ * overall message structure is left unmodified by this function.
+ *
  * @param sockfd Socket used to send the message
  * @return Number of bytes sent on success, -1 on error
  */
@@ -65,7 +68,10 @@ int send_efficient(int sockfd, tcp_message *msg);
  * Receives a tcp_message struct, by first receiving the command and the len,
  * then allocating memory for the payload for the len it just received.
  * Finally, it receives the payload.
- * Arranges command and len in host order.
+ *
+ * Note that the payload must be freed manually by the user of this function.
+ * Arranges command and len in host order after receiving.
+ *
  * @param sockfd Socket used to receive the message
  * @return Number of bytes received, on success, 0 if the sender closed
  * the connection, -1 on error.

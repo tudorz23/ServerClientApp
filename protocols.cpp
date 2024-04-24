@@ -92,8 +92,12 @@ int send_efficient(int sockfd, tcp_message *msg) {
         buff += bytes_sent;
     }
 
+    // Set command and len back to host order.
+    msg->command = ntohs(msg->command);
+    msg->len = ntohs(msg->len);
+
     // Now, send the payload.
-    bytes_remaining = ntohs(msg->len);
+    bytes_remaining = msg->len;
     buff = (uint8_t *) msg->payload;
 
     while (bytes_remaining) {
