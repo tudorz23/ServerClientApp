@@ -4,8 +4,6 @@
 #include <cstring>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 
 #include "utils.h"
@@ -72,7 +70,7 @@ bool Subscriber::check_validity() {
     DIE(rc < 0, "Error receiving connect confirmation from the server\n");
 
     if (msg->command == CONNECT_ACCEPTED) {
-        cout << "Connection accepted\n";
+        // cout << "Connection accepted\n";
 
         free(msg);
         return true;
@@ -160,7 +158,7 @@ void Subscriber::subscribe_unsubscribe_topic(uint16_t command, char *topic) {
     if (msg->command == UNSUBSCRIBE_SUCC) {
         cout << "Unsubscribed from topic " << topic << "\n";
     } else {
-        cout << "Not subscribed to topic " << topic << "cannot unsubscribe\n";
+        cout << "Not subscribed to topic " << topic << ", cannot unsubscribe\n";
     }
 
     free(msg);
@@ -192,7 +190,6 @@ bool Subscriber::manage_stdin_data() {
         }
 
         subscribe_unsubscribe_topic(SUBSCRIBE_REQ, topic);
-//        cout << topic << "\n";
         free(helper);
         return false;
     }
@@ -207,7 +204,6 @@ bool Subscriber::manage_stdin_data() {
         }
 
         subscribe_unsubscribe_topic(UNSUBSCRIBE_REQ, topic);
-//        cout << "Wants to unsubscribe from topic " << topic << "\n";
         free(helper);
         return false;
     }
@@ -230,6 +226,12 @@ bool Subscriber::manage_tcp_data(tcp_message *msg) {
     }
 
     // Got a message from the server.
+    if (msg->command != MSG_FROM_UDP) {
+        fprintf(stderr, "Something really bad happened\n");
+        free(msg->payload);
+        return false;
+    }
+
     cout << msg->payload << "\n";
     free(msg->payload);
 

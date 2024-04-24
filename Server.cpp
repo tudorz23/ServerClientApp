@@ -3,7 +3,6 @@
 #include <cstring>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 
 #include "utils.h"
@@ -110,6 +109,7 @@ void Server::run() {
     tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
 
+    // Buffers to avoid repeatedly allocating memory.
     char udp_msg[MAX_UDP_MSG];
     char formatted_msg[MAX_UDP_MSG];
 
@@ -223,6 +223,7 @@ void Server::add_client_pollfd(int client_sockfd) {
     pollfd client_pollfd;
     client_pollfd.fd = client_sockfd;
     client_pollfd.events = POLLIN;
+    client_pollfd.revents = 0;
 
     poll_fds.push_back(client_pollfd);
     num_pollfds++;
@@ -390,16 +391,16 @@ void Server::manage_udp_message(int client_fd, char *buff, char *formatted_msg) 
     // Data type from the received buff.
     uint8_t data_type = buff[50];
 
-    rc = interpret_udp_payload((int) data_type, buff + 51, topic, udp_client_addr,
-                          formatted_msg);
-    if (rc) {
+    bool valid = interpret_udp_payload((int) data_type, buff + 51, topic,
+                               udp_client_addr, formatted_msg);
+    if (valid) {
         send_msg_if_subscribed(topic, formatted_msg);
-        cout << "Sent msg: " << formatted_msg << "\n\n";
+//        cout << "Sent msg: " << formatted_msg << "\n\n";
     }
 }
 
 
-int Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic,
+bool Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic,
                                     struct sockaddr_in &udp_client_addr, char *buffer) {
     char *client_ip = inet_ntoa(udp_client_addr.sin_addr);
     uint16_t client_port = htons(udp_client_addr.sin_port);
@@ -408,7 +409,7 @@ int Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic,
     sprintf(buffer + strlen(buffer), "%s - ", topic);
 
     switch (data_type) {
-        case 0:
+        case 0: {
             uint8_t sign = udp_payload[0];
             uint32_t number = 0;
             memcpy(&number, udp_payload + 1, sizeof(uint32_t));
@@ -420,11 +421,48 @@ int Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic,
             }
 
             sprintf(buffer + strlen(buffer), "INT - %d", number);
-            //cout << buffer << "\n";
-            return 1;
-            break;
+            return true;
+        }
+        case 1: {
+            uint16_t number = 0;
+            memcpy(&number, udp_payload, sizeof(uint16_t));
+
+            double real_nr = (double) ntohs(number);
+            real_nr /= 100;
+
+            sprintf(buffer + strlen(buffer), "SHORT_REAL - %.2lf", real_nr);
+            return true;
+        }
+        case 2: {
+            uint8_t sign = udp_payload[0];
+            uint32_t number = 0;
+            memcpy(&number, udp_payload + 1, sizeof(uint32_t));
+
+            double real_nr = (double) ntohl(number);
+
+            uint8_t power = udp_payload[5];
+
+            for (int i = 0; i < (int) power; i++) {
+                real_nr /= 10.0;
+            }
+
+            if (sign == 1) {
+                real_nr *= -1.0;
+            }
+
+            sprintf(buffer + strlen(buffer), "FLOAT - %.*f", power, real_nr);
+            return true;
+        }
+        case 3: {
+            sprintf(buffer + strlen(buffer), "STRING - ");
+            strcpy(buffer + strlen(buffer), udp_payload);
+            return true;
+        }
+        default: {
+            fprintf(stderr, "This format is not supported\n");
+            return false;
+        }
     }
-    return 0;
 }
 
 
@@ -436,10 +474,8 @@ void Server::send_msg_if_subscribed(char *topic, char *formatted_msg) {
 
     msg->command = MSG_FROM_UDP;
     msg->len = strlen(formatted_msg) + 1;
-    msg->payload = (char *) calloc(1, msg->len);
-    DIE(!msg->payload, "calloc failed\n");
-
-    strcpy(msg->payload, formatted_msg);
+    msg->payload = strdup(formatted_msg);
+    DIE(!msg->payload, "strdup failed\n");
 
     for (auto &entry : clients) {
         client *curr_client = entry.second;

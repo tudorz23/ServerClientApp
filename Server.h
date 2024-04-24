@@ -99,7 +99,7 @@ class Server {
     void manage_udp_message(int client_fd, char *buff, char *formatted_msg);
 
 
-    int interpret_udp_payload(int data_type, char *udp_payload, char *topic,
+    bool interpret_udp_payload(int data_type, char *udp_payload, char *topic,
                                 struct sockaddr_in &udp_client_addr, char *buffer);
 
     void send_msg_if_subscribed(char *topic, char *formatted_msg);
