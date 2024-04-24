@@ -50,8 +50,8 @@ struct tcp_message {
 
 /**
  * Specialized send function that uses TCP's send().
- * Sends a tcp_message struct, by first sending the command and the len,
- * then sending the payload.
+ * Sends a tcp_message struct, by first sending the command, then the len,
+ * then finally sending the payload.
  *
  * Arranges command and len in network order before sending, so the caller
  * doesn't have to do it, but then puts them back in host order, so the
