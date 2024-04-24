@@ -35,7 +35,7 @@ class Server {
 
     /**
      * Destructor. Sends signal to all clients to tell them to close.
-     * Closes all file descriptors.
+     * Closes all file descriptors and frees the client structures.
      */
     ~Server();
 
@@ -107,6 +107,33 @@ class Server {
 
 
     void tokenize_topic(std::string &topic, std::vector<std::string> &tokens);
+
+
+    /**
+     * Tokenizes the topic and iterates through the client's topics, trying
+     * to match the given topic's tokens to one of the subscribed topics'
+     * tokens.
+     * @param topic Topic to search if the client is subscribed to
+     * @param subscr_topics Topics the client is subscribed to.
+     * @return true, if the client is subscribed to the topic, false otherwise
+     */
+    bool check_wildcard_topic(std::string &topic,
+                              std::map<std::string, std::vector<std::string>> &subscr_topics);
+
+
+    /**
+     * Does the iteration through two vectors of string tokens,
+     * determining if they match (considering the wildcards).
+     * @param old_tokens Tokens from a topic the client is subscribed to
+     * (might contain wildcards)
+     * @param new_tokens Tokens of a querried topic
+     * @param star_str The string "*"
+     * @param plus_str The string "+"
+     * @return true, if the two vectors match, false, otherwise
+     */
+    bool compare_token_vectors(std::vector<std::string> &old_tokens,
+                               std::vector<std::string> &new_tokens,
+                               std::string &star_str, std::string &plus_str);
 
     void printTokens(const std::string &topic, std::vector<std::string> &tokens);
 };

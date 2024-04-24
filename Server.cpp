@@ -490,7 +490,10 @@ void Server::send_msg_if_subscribed(char *topic, char *formatted_msg) {
 
         auto it = curr_client->subscribed_topics.find( string_topic);
         if (it == curr_client->subscribed_topics.end()) {
-            continue;
+            // Did not find the topic directly, try with wildcards.
+            if (!check_wildcard_topic(string_topic, curr_client->subscribed_topics)) {
+                continue;
+            }
         }
 
         // Send the message to this client.
@@ -510,6 +513,84 @@ void Server::tokenize_topic(string &topic, vector<string> &tokens) {
     while (getline(topic_stream, token, delim)) {
         tokens.push_back(token);
     }
+}
+
+
+
+bool Server::check_wildcard_topic(string &topic, map<string, vector<string>> &subscr_topics) {
+    vector<string> new_tokens;
+    tokenize_topic(topic, new_tokens);
+
+    string star_str("*");
+    string plus_str("+");
+
+    for (auto &entry : subscr_topics) {
+        if (compare_token_vectors(entry.second, new_tokens, star_str, plus_str)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+bool Server::compare_token_vectors(vector<string> &old_tokens, vector<string> &new_tokens,
+                                   string &star_str, string &plus_str) {
+    int new_size = new_tokens.size();
+    int old_size = old_tokens.size();
+
+    int it_old = -1; // iterator through old_tokens
+    int it_new = -1; // iterator through new_tokens
+
+    while (true) {
+        it_old++;
+        it_new++;
+
+        if (it_old == old_size || it_new == new_size) {
+            break;
+        }
+
+        if (old_tokens[it_old] == star_str) {
+            // Found a "*" wildcard.
+            it_old++;
+            if (it_old == old_size) {
+                // The star is at the end, so return true.
+                return true;
+            }
+
+            string after_star = old_tokens[it_old]; // next string after the *
+
+            // Advance with the new_tokens until after_star is found.
+            while (true) {
+                if (it_new == new_size) {
+                    return false;
+                }
+
+                if (new_tokens[it_new] == after_star) {
+                    break;
+                }
+
+                it_new++;
+            }
+            continue;
+        }
+
+        if (old_tokens[it_old] == plus_str) {
+            // Found a "+" wildcard. Jump one comparison.
+            continue;
+        }
+
+        // Normal case.
+        if (old_tokens[it_old] != new_tokens[it_new]) {
+            return false;
+        }
+    }
+
+    // For a match, both iterators should have reached the end.
+    if (it_old != old_size || it_new != new_size) {
+        return false;
+    }
+    return true;
 }
 
 
