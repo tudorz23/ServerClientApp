@@ -40,7 +40,7 @@ class Server {
     /**
      * Sets up the TCP socket for listening for new connections.
      */
-	void prepare_tcp_socket();
+    void prepare_tcp_socket();
 
 
     /**

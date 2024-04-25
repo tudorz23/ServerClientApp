@@ -1,13 +1,11 @@
 #include "Subscriber.h"
-
 #include <sys/socket.h>
 #include <cstring>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
-
-#include "utils.h"
 #include <cstdlib>
+#include "utils.h"
 
 using namespace std;
 
@@ -27,7 +25,7 @@ Subscriber::~Subscriber() {
 void Subscriber::prepare() {
     // Create TCP socket to connect to the server.
     tcp_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    DIE(tcp_sockfd < 0, "[SUBSCRIBER] TCP socket creation failed.\n");
+    DIE(tcp_sockfd < 0, "Subscriber: TCP socket creation failed.\n");
 
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(struct sockaddr_in));
@@ -39,15 +37,15 @@ void Subscriber::prepare() {
     // Disable Nagle algorithm.
     int opt_flag = 1;
     int rc = setsockopt(tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
-    DIE(rc < 0, "[SUBSCRIBER] Nagle disabling failed.\n");
+    DIE(rc < 0, "Subscriber: Nagle disabling for TCP socket failed.\n");
 
     // Connect to the server.
     rc = connect(tcp_sockfd, (const struct sockaddr *)&server_addr, sizeof(server_addr));
-    DIE(rc < 0, "[SUBSCRIBER] Connection to server failed.\n");
+    DIE(rc < 0, "Subscriber: Connection to server failed.\n");
 }
 
 
-bool Subscriber::check_validity() {
+bool Subscriber::check_connection_validity() {
     // Send client id to the server.
     tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
@@ -70,13 +68,11 @@ bool Subscriber::check_validity() {
     DIE(rc < 0, "Error receiving connect confirmation from the server\n");
 
     if (msg->command == CONNECT_ACCEPTED) {
-        // cout << "Connection accepted\n";
-
         free(msg);
         return true;
     }
 
-    // Connect denied.
+    // Connection denied.
     cout << "Connection denied\n";
 
     free(msg);
@@ -101,7 +97,7 @@ void Subscriber::run() {
 
     while (true) {
         int rc = poll(poll_fds.data(), poll_fds.size(), -1);
-        DIE(rc < 0, "[SUBSCRIBER] poll failed.\n");
+        DIE(rc < 0, "Subscriber: poll failed.\n");
 
         if (poll_fds[0].revents & POLLIN) {
             // Received something from stdin.
@@ -155,6 +151,7 @@ void Subscriber::subscribe_unsubscribe_topic(uint16_t command, char *topic) {
         return;
     }
 
+    // Command was UNSUBSCRIBE_REQ
     if (msg->command == UNSUBSCRIBE_SUCC) {
         cout << "Unsubscribed from topic " << topic << "\n";
     } else {
@@ -169,7 +166,7 @@ bool Subscriber::manage_stdin_data() {
     // Use string so the user can input data as long as wanted.
     string stdin_data;
 
-    getline(cin, stdin_data);
+    getline(cin, stdin_data, '\n');
 
     if (stdin_data == "exit") {
         return true;

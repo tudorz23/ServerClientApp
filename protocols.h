@@ -31,11 +31,11 @@
  * disconnect and of the topics they subscribe to and unsubscribe from.
  */
 struct client {
-    // This will change when disconnecting and connecting again.
+    // These will change when disconnecting and connecting again.
     int curr_fd;
     bool is_connected;
 
-    // <topic, tokens> map
+    // Mappings of <topic, tokens> type.
     std::map<std::string, std::vector<std::string>> subscribed_topics;
 };
 
@@ -45,6 +45,22 @@ struct tcp_message {
     uint16_t len; // length of the payload
     char *payload;
 };
+
+
+/**
+ * Specialized recv function that uses TCP's recv().
+ * Receives a tcp_message struct, by first receiving the command, then the
+ * len, then allocating memory for the payload for the len it just received.
+ * Finally, it receives the payload.
+ *
+ * Note that the payload must be freed manually by the user of this function.
+ * Arranges command and len in host order after receiving.
+ *
+ * @param sockfd Socket used to receive the message
+ * @return Number of bytes received on success, 0 if the sender closed
+ * the connection, -1 on error.
+ */
+int recv_efficient(int sockfd, tcp_message *msg);
 
 
 /**
@@ -60,22 +76,6 @@ struct tcp_message {
  * @return Number of bytes sent on success, -1 on error
  */
 int send_efficient(int sockfd, tcp_message *msg);
-
-
-/**
- * Specialized recv function that uses TCP's recv().
- * Receives a tcp_message struct, by first receiving the command and the len,
- * then allocating memory for the payload for the len it just received.
- * Finally, it receives the payload.
- *
- * Note that the payload must be freed manually by the user of this function.
- * Arranges command and len in host order after receiving.
- *
- * @param sockfd Socket used to receive the message
- * @return Number of bytes received, on success, 0 if the sender closed
- * the connection, -1 on error.
- */
-int recv_efficient(int sockfd, tcp_message *msg);
 
 
 #endif /* PROTOCOLS_H */

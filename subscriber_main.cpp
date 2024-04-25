@@ -10,14 +10,14 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
     if (argc != 4) {
-        cout << "[SUBSCRIBER] Usage: " << argv[0];
-        cout << " <CLIENT_ID> <SERVER_IP> <SERVER_PORT> \n";
-        return 1;
+        cout << "Subscriber Usage: " << argv[0]
+             << " <CLIENT_ID> <SERVER_IP> <SERVER_PORT> \n";
+        return -1;
     }
 
     if (strlen(argv[1]) > 10) {
         cout << "ID must have at most 10 characters\n";
-        return 1;
+        return -1;
     }
 
     // Get server_port as number.
@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
 
     subscriber->prepare();
 
-    if (subscriber->check_validity()) {
+    if (subscriber->check_connection_validity()) {
         subscriber->run();
     }
 
