@@ -4,12 +4,12 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-
-#include "utils.h"
-#include "protocols.h"
 #include <cstdlib>
 #include <algorithm>
 #include <sstream>
+
+#include "utils.h"
+#include "protocols.h"
 
 #define LISTEN_BACKLOG 50
 
@@ -28,7 +28,7 @@ Server::~Server() {
         close(poll_fds[i].fd);
     }
 
-    // Free all the client structures.
+    // Delete all the client structures.
     for (auto &entry : clients) {
         delete entry.second;
     }
@@ -50,46 +50,46 @@ struct sockaddr_in Server::fill_sockaddr() {
 void Server::prepare_udp_socket() {
     // Create UDP socket.
     udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    DIE(udp_sockfd < 0, "[SERVER]: UDP socket creation failed.\n");
+    DIE(udp_sockfd < 0, "Server: UDP socket creation failed.\n");
 
-    // Mark socket as reusable for multiple short time runnings.
-    int udp_enable = 1;
-    int rc = setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &udp_enable, sizeof(int));
-    DIE(rc < 0, "[SERVER]: setsockopt() for UDP failed.\n");
+    // Mark socket as reusable for multiple short time executions.
+    int udp_flag = 1;
+    int rc = setsockopt(udp_sockfd, SOL_SOCKET, SO_REUSEADDR, &udp_flag, sizeof(int));
+    DIE(rc < 0, "Server: setsockopt() for UDP failed.\n");
 
     // Fill sockaddr_in structure details.
     struct sockaddr_in udp_addr = fill_sockaddr();
 
     // Bind the UDP socket to the address.
     rc = bind(udp_sockfd, (const struct sockaddr *)&udp_addr, sizeof(udp_addr));
-    DIE(rc < 0, "[SERVER] UDP socket bind failed.\n");
+    DIE(rc < 0, "Server: UDP socket bind failed.\n");
 }
 
 
 void Server::prepare_tcp_socket() {
     // Create TCP socket.
     tcp_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    DIE(tcp_sockfd < 0, "[SERVER] TCP socket creation failed.\n");
+    DIE(tcp_sockfd < 0, "Server: TCP listen socket creation failed.\n");
 
-    // Mark socket as reusable for multiple short time runnings.
+    // Mark socket as reusable for multiple short time executions.
     int opt_flag = 1;
     int rc = setsockopt(tcp_sockfd, SOL_SOCKET, SO_REUSEADDR, &opt_flag, sizeof(int));
-    DIE(rc < 0, "[SERVER]: setsockopt() for TCP failed.\n");
+    DIE(rc < 0, "Server: setsockopt() for TCP failed.\n");
 
     // Fill sockaddr_in structure details.
     struct sockaddr_in tcp_addr = fill_sockaddr();
 
     // Bind the TCP socket to the address.
     rc = bind(tcp_sockfd, (const struct sockaddr *)&tcp_addr, sizeof(tcp_addr));
-    DIE(rc < 0, "[SERVER] TCP socket bind failed.\n");
+    DIE(rc < 0, "Server: TCP listen socket bind failed.\n");
 
     // Disable Nagle algorithm.
     rc = setsockopt(tcp_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
-    DIE(rc < 0, "[SERVER] Nagle disabling failed.\n");
+    DIE(rc < 0, "Server: Nagle disabling for listen socket failed.\n");
 
     // Set the socket to listen.
     rc = listen(tcp_sockfd, LISTEN_BACKLOG);
-    DIE(rc < 0, "[SERVER] Listening failed.\n");
+    DIE(rc < 0, "Server: Socket listening failed.\n");
 }
 
 
@@ -119,7 +119,7 @@ void Server::prepare() {
 
 
 void Server::run() {
-    tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
+    tcp_message *msg = (tcp_message *) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
 
     // Buffers to avoid repeatedly allocating memory.
@@ -130,7 +130,7 @@ void Server::run() {
         // Use vector::data to access the start of the memory zone
         // internally used by the vector.
         int rc = poll(poll_fds.data(), poll_fds.size(), -1);
-        DIE(rc < 0, "[SERVER] poll failed.\n");
+        DIE(rc < 0, "Server: poll failed.\n");
 
         if (poll_fds[0].revents & POLLIN) {
             // Received something from stdin.
@@ -140,6 +140,7 @@ void Server::run() {
         }
 
         if (poll_fds[1].revents & POLLIN) {
+            // Received a message from a UDP client.
             manage_udp_message(poll_fds[1].fd, udp_msg, formatted_msg);
         }
 
@@ -152,7 +153,7 @@ void Server::run() {
             continue;
         }
 
-        // Iterate the client sockets.
+        // Iterate the TCP client sockets.
         auto it = poll_fds.begin() + 3;
         while (it != poll_fds.end()) {
             pollfd client_pollfd = *it;
@@ -165,13 +166,13 @@ void Server::run() {
                 // Got message from client.
                 memset(msg, 0, sizeof(tcp_message));
                 rc = recv_efficient(client_pollfd.fd, msg);
-                DIE(rc < 0, "Failed to receive message from the client\n");
+                DIE(rc < 0, "Failed to receive message from the TCP client\n");
 
                 if (rc == 0) {
                     // Connection has been closed.
                     pair<string, client*> entry = get_client_from_fd(client_pollfd.fd);
-
                     client* exiting_client = entry.second;
+
                     // Mark client as disconnected.
                     exiting_client->is_connected = false;
                     exiting_client->curr_fd = -1; // the fd is not useful anymore
@@ -183,6 +184,7 @@ void Server::run() {
 
                     cout << "Client " << entry.first << " disconnected.\n";
                 } else {
+                    // GOt subscribe/unsubscribe request.
                     manage_subscribe_unsubscribe(client_pollfd.fd, msg);
                     free(msg->payload);
                 }
@@ -202,7 +204,7 @@ bool Server::check_stdin_data() {
     // Use string so the user can input data as long as wanted.
     string stdin_data;
 
-    getline(cin, stdin_data);
+    getline(cin, stdin_data, '\n');
 
     if (stdin_data == "exit") {
         return true;
@@ -213,20 +215,21 @@ bool Server::check_stdin_data() {
 }
 
 
-void Server::send_connection_response(bool ok_status, int client_sockfd) {
-    tcp_message *msg = (tcp_message *) malloc(sizeof(tcp_message));
-    DIE(!msg, "malloc failed\n");
+void Server::send_connection_response(bool response, int client_sockfd) {
+    tcp_message *msg = (tcp_message *) calloc(1, sizeof(tcp_message));
+    DIE(!msg, "calloc failed\n");
 
-    if (ok_status) {
+    if (response) {
         msg->command = CONNECT_ACCEPTED;
     } else {
         msg->command = CONNECT_DENIED;
     }
 
+    // No payload is needed, response is deduced from the command attribute.
     msg->len = 0;
 
     int rc = send_efficient(client_sockfd, msg);
-    DIE(rc < 0, "Error sending connection response\n");
+    DIE(rc < 0, "Error sending connection response to client\n");
 
     free(msg);
 }
@@ -248,12 +251,12 @@ void Server::manage_connection_request() {
     socklen_t client_len = sizeof(client_addr);
 
     int client_sockfd = accept(tcp_sockfd, (struct sockaddr*)&client_addr, &client_len);
-    DIE(client_sockfd < 0, "[SERVER] accept failed.\n");
+    DIE(client_sockfd < 0, "Server: connection accept failed.\n");
 
     // Disable Nagle algorithm.
     int opt_flag = 1;
     int rc = setsockopt(client_sockfd, IPPROTO_TCP, TCP_NODELAY, &opt_flag, sizeof(int));
-    DIE(rc < 0, "[SERVER] Nagle disabling for client failed.\n");
+    DIE(rc < 0, "Server: Nagle disabling for new client failed.\n");
 
     tcp_message *msg = (tcp_message*) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
@@ -283,41 +286,41 @@ void Server::manage_connection_request() {
 
         clients.insert({client_id, new_client});
 
-        // Add the pollfd to the vector of poll_fds.
+        // Add new pollfd to the vector of poll_fds.
         add_client_pollfd(client_sockfd);
 
         // Send confirmation.
         send_connection_response(true, client_sockfd);
 
         cout << "New client " << client_id << " connected from "
-            << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << ".\n";
-
+            << inet_ntoa(client_addr.sin_addr) << ":"
+            << ntohs(client_addr.sin_port) << ".\n";
         return;
     }
 
-    // Client id is already registered. Check if the client is already connected.
+    // Client id is already registered. Check if the client is connected.
     client* database_client = it->second;
     if (database_client->is_connected) {
-        // Send decline message to the client and tell it to exit.
+        // Send decline message.
         send_connection_response(false, client_sockfd);
 
         cout << "Client " << client_id << " already connected.\n";
-
         return;
     }
 
-    // Client is not connected, so update the client struct and mark as connected.
+    // Client is not connected, so update the client sock_fd and mark as connected.
     database_client->is_connected = true;
     database_client->curr_fd = client_sockfd;
 
-    // Add the pollfd to the vector of poll_fds.
+    // Add new pollfd to the vector of poll_fds.
     add_client_pollfd(client_sockfd);
 
     // Send confirmation.
     send_connection_response(true, client_sockfd);
 
     cout << "New client " << client_id << " connected from "
-         << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "\n";
+         << inet_ntoa(client_addr.sin_addr) << ":"
+         << ntohs(client_addr.sin_port) << "\n";
 }
 
 
@@ -343,12 +346,13 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
     DIE(!ans_msg, "calloc failed\n");
     ans_msg->len = 0; // will not send any payload.
 
+    // Check if the client is subscribed to the requested topic.
     map<string, vector<string>>::iterator it;
     it = req_client->subscribed_topics.find(topic);
 
     if (req_msg->command == SUBSCRIBE_REQ) {
         if (it != req_client->subscribed_topics.end()) {
-            // Client is already subscribed to the topic.
+            // Client is already subscribed to the topic, send fail message.
             ans_msg->command = SUBSCRIBE_FAIL;
             rc = send_efficient(client_fd, ans_msg);
             DIE(rc < 0, "Failed to send error msg for subscribe\n");
@@ -357,11 +361,12 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
             return;
         }
 
-        // Subscribe to the new topic.
+        // Client can subscribe to the new topic.
         vector<string> tokens;
         tokenize_topic(topic, tokens);
         req_client->subscribed_topics.insert({topic, tokens});
 
+        // Send success message.
         ans_msg->command = SUBSCRIBE_SUCC;
         rc = send_efficient(client_fd, ans_msg);
         DIE(rc < 0, "Failed to send success msg for subscribe\n");
@@ -372,6 +377,7 @@ void Server::manage_subscribe_unsubscribe(int client_fd, tcp_message *req_msg) {
 
     // UNSUBSCRIBE_REQ
     if (it == req_client->subscribed_topics.end()) {
+        // Not subscribed to the topic, cannot unsubscribe.
         ans_msg->command = UNSUBSCRIBE_FAIL;
         rc = send_efficient(client_fd, ans_msg);
         DIE(rc < 0, "Failed to send error msg for unsubscribe\n");
@@ -408,23 +414,21 @@ void Server::manage_udp_message(int client_fd, char *buff, char *formatted_msg) 
     // Data type from the received buff.
     uint8_t data_type = buff[50];
 
-    bool valid = interpret_udp_payload((int) data_type, buff + 51, topic,
-                               udp_client_addr, formatted_msg);
+    char *client_ip = inet_ntoa(udp_client_addr.sin_addr);
+    uint16_t client_port = htons(udp_client_addr.sin_port);
+
+    sprintf(formatted_msg, "%s:%hu - %s - ", client_ip, client_port, topic);
+
+    bool valid = interpret_udp_payload((int) data_type, buff + 51,
+                                       formatted_msg + strlen(formatted_msg));
     if (valid) {
         send_msg_if_subscribed(topic, formatted_msg);
-//        cout << "Sent msg: " << formatted_msg << "\n\n";
     }
 }
 
 
-bool Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic,
-                                    struct sockaddr_in &udp_client_addr, char *buffer) {
-    char *client_ip = inet_ntoa(udp_client_addr.sin_addr);
-    uint16_t client_port = htons(udp_client_addr.sin_port);
-
-    sprintf(buffer, "%s:%hu - ", client_ip, client_port);
-    sprintf(buffer + strlen(buffer), "%s - ", topic);
-
+bool Server::interpret_udp_payload(int data_type, char *udp_payload,
+                                   char *formatted_msg) {
     switch (data_type) {
         case 0: {
             uint8_t sign = udp_payload[0];
@@ -437,7 +441,7 @@ bool Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic
                 number *= -1;
             }
 
-            sprintf(buffer + strlen(buffer), "INT - %d", number);
+            sprintf(formatted_msg, "INT - %d", number);
             return true;
         }
         case 1: {
@@ -445,9 +449,9 @@ bool Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic
             memcpy(&number, udp_payload, sizeof(uint16_t));
 
             double real_nr = (double) ntohs(number);
-            real_nr /= 100;
+            real_nr /= 100.0;
 
-            sprintf(buffer + strlen(buffer), "SHORT_REAL - %.2lf", real_nr);
+            sprintf(formatted_msg, "SHORT_REAL - %.2lf", real_nr);
             return true;
         }
         case 2: {
@@ -467,12 +471,12 @@ bool Server::interpret_udp_payload(int data_type, char *udp_payload, char *topic
                 real_nr *= -1.0;
             }
 
-            sprintf(buffer + strlen(buffer), "FLOAT - %.*f", power, real_nr);
+            sprintf(formatted_msg, "FLOAT - %.*lf", power, real_nr);
             return true;
         }
         case 3: {
-            sprintf(buffer + strlen(buffer), "STRING - ");
-            strcpy(buffer + strlen(buffer), udp_payload);
+            sprintf(formatted_msg, "STRING - ");
+            strcpy(formatted_msg + strlen(formatted_msg), udp_payload);
             return true;
         }
         default: {
@@ -529,7 +533,6 @@ void Server::tokenize_topic(string &topic, vector<string> &tokens) {
 }
 
 
-
 bool Server::check_wildcard_topic(string &topic, map<string, vector<string>> &subscr_topics) {
     vector<string> new_tokens;
     tokenize_topic(topic, new_tokens);
@@ -546,8 +549,8 @@ bool Server::check_wildcard_topic(string &topic, map<string, vector<string>> &su
 }
 
 
-
-bool Server::compare_token_vectors(vector<string> &old_tokens, vector<string> &new_tokens,
+bool Server::compare_token_vectors(vector<string> &old_tokens,
+                                   vector<string> &new_tokens,
                                    string &star_str, string &plus_str) {
     int new_size = new_tokens.size();
     int old_size = old_tokens.size();
@@ -571,7 +574,7 @@ bool Server::compare_token_vectors(vector<string> &old_tokens, vector<string> &n
                 return true;
             }
 
-            string after_star = old_tokens[it_old]; // next string after the *
+            string after_star = old_tokens[it_old]; // next token after the *
 
             // Advance with the new_tokens until after_star is found.
             while (true) {
@@ -589,7 +592,7 @@ bool Server::compare_token_vectors(vector<string> &old_tokens, vector<string> &n
         }
 
         if (old_tokens[it_old] == plus_str) {
-            // Found a "+" wildcard. Jump one comparison.
+            // Found a "+" wildcard. Jump over one comparison.
             continue;
         }
 

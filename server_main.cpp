@@ -1,6 +1,6 @@
 #include <iostream>
-#include "utils.h"
 #include "Server.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -9,8 +9,8 @@ int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, BUFSIZ);
 
     if (argc != 2) {
-        cout << "[SERVER] Usage: " << argv[0] << " <PORT>\n";
-        return 1;
+        cout << "Server usage: " << argv[0] << " <PORT>\n";
+        return -1;
     }
 
     // Get port as number.
@@ -18,15 +18,15 @@ int main(int argc, char **argv) {
     int rc = sscanf(argv[1], "%hu", &port);
     DIE(rc != 1, "Invalid port number.\n");
 
-	Server *server;
-	try {
-		server = new Server(port);
-	} catch (bad_alloc &exception) {
-		fprintf(stderr, "Server alloc failed.\n");
-		exit(-1);
-	}
+    Server *server;
+    try {
+        server = new Server(port);
+    } catch (bad_alloc &exception) {
+        fprintf(stderr, "Server alloc failed.\n");
+        exit(-1);
+    }
 
-	server->prepare();
+    server->prepare();
 
     server->run();
 

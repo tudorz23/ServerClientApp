@@ -180,6 +180,12 @@ bool Subscriber::manage_stdin_data() {
 
     char *command = strtok(helper, " ");
 
+    if (!command) {
+        free(helper);
+        cout << "Accepted commands: <exit> <subscribe> <unsubscribe>\n";
+        return false;
+    }
+
     if (strcmp(command, "subscribe") == 0) {
         char *topic = strtok(NULL, "\n ");
 
