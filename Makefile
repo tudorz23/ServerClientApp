@@ -30,6 +30,6 @@ clean:
 	rm -f *.o $(TARGETS)
 
 pack:
-	zip -FSr 323CA_Zaharia_Marius-Tudor_Tema2.zip Makefile *.cpp *.h README
+	zip -FSr 323CA_Zaharia_Marius-Tudor_Tema2.zip Makefile *.cpp *.h readme.txt
 
 .PHONY: all clean pack
