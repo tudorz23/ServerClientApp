@@ -301,6 +301,7 @@ void Server::manage_connection_request() {
     if (database_client->is_connected) {
         // Send decline message.
         send_connection_response(false, client_sockfd);
+        close(client_sockfd);
 
         cout << "Client " << client_id << " already connected.\n";
         return;
