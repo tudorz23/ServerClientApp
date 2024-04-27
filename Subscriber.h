@@ -25,7 +25,7 @@ class Subscriber {
      * @param command Flag for subscribe/unsubscribe
      * @param topic topic to subscribe/unsubscribe to/from
      */
-    void subscribe_unsubscribe_topic(uint16_t command, char *topic);
+    void subscribe_unsubscribe_topic(uint8_t command, char *topic);
 
 
     /**

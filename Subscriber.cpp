@@ -118,7 +118,7 @@ void Subscriber::run() {
 }
 
 
-void Subscriber::subscribe_unsubscribe_topic(uint16_t command, char *topic) {
+void Subscriber::subscribe_unsubscribe_topic(uint8_t command, char *topic) {
     tcp_message *msg = (tcp_message *) calloc(1, sizeof(tcp_message));
     DIE(!msg, "calloc failed\n");
 

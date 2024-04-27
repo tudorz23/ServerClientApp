@@ -46,8 +46,7 @@ int recv_efficient(int sockfd, tcp_message *msg) {
         bytes_remaining -= bytes_recv;
     }
 
-    // Convert to host order.
-    msg->command = ntohs(msg->command);
+    // Convert len to host order.
     msg->len = ntohs(msg->len);
 
     // If len is 0, no payload should be received.
@@ -84,8 +83,7 @@ int send_efficient(int sockfd, tcp_message *msg) {
     int bytes_remaining;
     uint8_t *buff;
 
-    // Convert to network order to prepare for sending.
-    msg->command = htons(msg->command);
+    // Convert len to network order to prepare for sending.
     msg->len = htons(msg->len);
 
     // Firstly, send the command.
@@ -120,8 +118,7 @@ int send_efficient(int sockfd, tcp_message *msg) {
         buff += bytes_sent;
     }
 
-    // Set command and len back to host order.
-    msg->command = ntohs(msg->command);
+    // Set len back to host order.
     msg->len = ntohs(msg->len);
 
     // Now, send the payload.

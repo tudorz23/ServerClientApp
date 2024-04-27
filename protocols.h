@@ -41,7 +41,7 @@ struct client {
 
 
 struct tcp_message {
-    uint16_t command;
+    uint8_t command;
     uint16_t len; // length of the payload
     char *payload;
 };
@@ -54,7 +54,7 @@ struct tcp_message {
  * Finally, it receives the payload.
  *
  * Note that the payload must be freed manually by the user of this function.
- * Arranges command and len in host order after receiving.
+ * Arranges len in host order after receiving.
  *
  * @param sockfd Socket used to receive the message
  * @return Number of bytes received on success, 0 if the sender closed
@@ -65,11 +65,11 @@ int recv_efficient(int sockfd, tcp_message *msg);
 
 /**
  * Specialized send function that uses TCP's send().
- * Sends a tcp_message struct, by first sending the command, then the len,
- * then finally sending the payload.
+ * Sends a tcp_message struct, by first sending the command, then the
+ * len, then finally sending the payload.
  *
- * Arranges command and len in network order before sending, so the caller
- * doesn't have to do it, but then puts them back in host order, so the
+ * Arranges len in network order before sending, so the caller doesn't
+ * have to do it, but then puts it back in host order, so the
  * overall message structure is left unmodified by this function.
  *
  * @param sockfd Socket used to send the message

@@ -217,10 +217,10 @@ defensive programming principles were used everywhere.
 
 ## 10. Bibliography
 * The 7th laboratory was used as the base for sockets and multiplexing using
-poll: https://pcom.pages.upb.ro/labs/lab7/tcp.html ;
+poll: https://pcom.pages.upb.ro/labs/lab7/tcp.html
 * To learn how to organize the code in classes:
-https://www.learncpp.com/cpp-tutorial/classes-and-header-files/ ;
+https://www.learncpp.com/cpp-tutorial/classes-and-header-files/
 * For various functions documentations in C++:
-https://cplusplus.com/reference/ ;
+https://cplusplus.com/reference/
 * The debate on `map` vs `unordered_map`:
 https://stackoverflow.com/questions/2196995/is-there-any-advantage-of-using-map-over-unordered-map-in-case-of-trivial-keys
