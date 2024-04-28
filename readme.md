@@ -63,13 +63,13 @@ way, but also why and how I got to them.
 
 ## 5. The Protocol over TCP
 * Probably the most important part of the homework (and the main requirement)
-was the creation of an efficient and robust protocol for sending messages above
+was the creation of an efficient and robust protocol for sending messages over
 the TCP.
 * For that, I used the `tcp_message` structure, which encapsulates the
 `command` type, the `len` of the payload and the `payload` itself (the actual
 message sent).
 * The `command` field takes a value from 0 to 9 and marks the role of the
-message structure (described as `#define` directives in `protcols.h`).
+message structure (described as `#define` directives in `protocols.h`).
 * The `len` attribute is necessary for knowing how long the memory zone where
 the payload would be stored should be. For the protocol to be efficient, the
 `payload` cannot be statically allocated, because then the same number of bytes
@@ -102,7 +102,7 @@ future projects.
 ## 6. Program flow and logic
 * The `server` program starts by initializing the basic sockets and `pollfd`
 structs that would be used (stdin for messages from user, UDP for messages
-from UDP client and TCP for listening for client connection requests). It then
+from UDP clients and TCP for listening for client connection requests). It then
 enters an infinite loop, polling events from the open sockets.
 * Similarly, the `subscriber` initializes the TCP communication socket, then
 sends its ID to the server, waiting for confirmation of connection.
@@ -112,7 +112,7 @@ transmission.
 and sends a response to the requester. If accepted, a new `pollfd` entry is
 added to the `poll_fds` vector and `poll()` starts checking it too for events.
 If the client already existed but was reconnecting, the server would only
-update it status as connected and set the new file descriptor, also adding the
+update its status as connected and set the new file descriptor, also adding the
 new `pollfd` entry.
 * The subscriber then also enters an infinite loop of polling events, only from
 stdin and from the TCP socket.
@@ -125,7 +125,7 @@ sends an empty message to the server to announce its exit and then closes. The
 server marks it as not connected anymore and closes the respective file
 descriptor, also deleting the `pollfd` entry, but keeps the subscription list,
 so the client can reconnect and still have access to its subscriptions.
-* The server can receive messages from a UDP client, based on a predefined (by
+* The server can receive messages from UDP clients, based on a predefined (by
 the PCOM team) protocol. It checks the client database to find those clients
 that are subscribed to the given topic and then sends each one of them the
 received message.
@@ -136,7 +136,7 @@ for one level. When checking if a client is subscribed to a topic, the server
 also takes wildcards into consideration.
 * If the client receives an `exit` message from stdin, it automatically sends
 a message to each connected subscriber to announce the exiting, then frees all
-the resources and closes. All the clients to the same thing.
+the resources and closes. All the clients must also close.
 
 ---
 
@@ -163,7 +163,7 @@ exists.
 I used `free()`, the structure (`map`) used for subscription storage was not
 calling its destructor (I got a memory leak). Thus, I allocated the `client`
 with `new` and freed it with `delete`, and the memory leak was gone (probably
-the destructor for the `map` was now called), so another new thing learnt.
+the destructor for the `map` was now triggered), so another new thing learnt.
 * For the messages coming from UDP, I did not see any use for a dedicated
 structure, so I received directly in a pre-allocated buffer. I don't think
 anything more efficient could have been done here, the size of the UDP message
@@ -189,8 +189,8 @@ because the former does it in `O(log n)` always, while the latter has a worst
 case of `O(n)` and an amortized `O(1)`. The unordered one looks to be better
 for static collections. I obviously did not find much of a difference by
 testing on small inputs.
-* Because the tokenization of the stored topic is only done at insertion, when
-a wildcard checking is necessary, only the requested topic is tokenized, then,
+* The tokenization of the stored topic is only done at insertion, so when a
+wildcard checking is necessary, only the requested topic is tokenized, then,
 for each topic the client is subscribed to, the two vectors of tokens are
 compared, according to the rules of the wildcards. The algorithm here is simple
 enough, no `strcmp()` or anything like that is needed because strings are used,
@@ -220,7 +220,6 @@ defensive programming principles were used everywhere.
 poll: https://pcom.pages.upb.ro/labs/lab7/tcp.html
 * To learn how to organize the code in classes:
 https://www.learncpp.com/cpp-tutorial/classes-and-header-files/
-* For various functions documentations in C++:
-https://cplusplus.com/reference/
+* For various function documentations in C++: https://cplusplus.com/reference/
 * The debate on `map` vs `unordered_map`:
 https://stackoverflow.com/questions/2196995/is-there-any-advantage-of-using-map-over-unordered-map-in-case-of-trivial-keys
