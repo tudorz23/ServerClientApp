@@ -4,7 +4,21 @@
 
 ---
 
-## 1. What is Server Client App?
+## Table of contents
+1. [What is Server Client App?](#what-is-server-client-app)
+2. [File distribution](#file-distribution)
+3. [Running](#running)
+4. [General details and design choices](#general-details-and-design-choices)
+5. [The Protocol over TCP](#the-protocol-over-tcp)
+6. [Program flow and logic](#program-flow-and-logic)
+7. [Punctual implementation details](#punctual-implementation-details)
+8. [Wildcard handling](#wildcard-handling)
+9. [Final thoughts](#final-thoughts)
+10. [Bibliography](#bibliography)
+
+---
+
+## What is Server Client App?
 * Server Client App is a basic implementation of a client-server system based
 on the socket API from Linux.
 * It focuses on providing an I/O multiplexing mechanism, that allows the
@@ -13,12 +27,10 @@ emphasis is put on the ability of the system (the server, but also the client)
 to handle a large number of messages in a short time span and for the events
 that occur for various subscribers to be treated immediately.
 * For that, the poll mechanism is used.
-* Hint: this file can be saved with the `.md` extension to be interpreted as a
-`Markdown` document (the requirement was for the readme to be in txt format).
 
 ---
 
-## 2. File distribution
+## File distribution
 * The server side of the system is described as a class, placed in `Server.h`,
 while the class methods are implemented in `Server.cpp`.
 * The main code is written in `server_main.cpp`, thus achieving clarity and
@@ -31,43 +43,34 @@ efficient way is described in `protocols.h` and `protocols.cpp`.
 
 ---
 
-## 3. Running
+## Running
 * The system can be compiled by using the `make` command in the root directory.
-* To run the server, the command `./server <PORT>` should be used.
-* The command `./subscriber <CLIENT_ID> <SERVER_IP> <SERVER_PORT>` should be
-used to run the TCP subscriber.
+* To run the server: `./server <PORT>` (i.e. `./server 12345`).
+* To run the TCP subscriber: `./subscriber <CLIENT_ID> <SERVER_IP> <SERVER_PORT>`
+(i.e. `./subscriber name 127.0.0.1 12345`).
+* To subscribe to a topic: `subscribe <topic>`.
+* The topics can be found in the JSON files from `pcom_hw2_udp_client/`.
+* To run the UDP subscriber: instructions in `pcom_hw2_udp_client/README.md`.
 * Both the server and the subscriber can be stopped with the `exit` command.
 
 ---
 
-## 4. General details and design choices
-* This app is written in C++ for the ability to use the STL (particularly, the
-`vector` and `map` containers), so there is no need to manually manage the
-memory to handle an indefinite number of clients and subscriptions for each.
+## General details and design choices
 * I chose to use classes for the server and for the subscriber, thus being able
 to access their class attributes from anywhere inside the class. Without
 classes, global variables should have been used, or the variables should have
 been initialized in the `main()` functions, and then passed as parameters to
-all the functions that needed them. So, the class solution is the best in my
-opinion.
+all the functions that needed them.
 * For managing the connected/disconnected clients inside the server class, I
-use the `client` structure. When I made the decision, I thought that there will
-not be many functions associated with the `client` structure, and there are
-not, but now I think that using a `Client` class would have been a little more
-elegant and in tone with the rest of the program.
-* This was my first-ever project written in real C++, so it was a continuous
-learning process, so I will explain not only what decisions I made along the
-way, but also why and how I got to them.
+used the `client` structure.
 
 ---
 
-## 5. The Protocol over TCP
-* Probably the most important part of the homework (and the main requirement)
-was the creation of an efficient and robust protocol for sending messages over
-the TCP.
+## The Protocol over TCP
+* Probably the most important part of the project was the creation of an
+efficient and robust protocol for sending messages over the TCP.
 * For that, I used the `tcp_message` structure, which encapsulates the
-`command` type, the `len` of the payload and the `payload` itself (the actual
-message sent).
+`command` type, the `len` of the payload and the `payload` itself.
 * The `command` field takes a value from 0 to 9 and marks the role of the
 message structure (described as `#define` directives in `protocols.h`).
 * The `len` attribute is necessary for knowing how long the memory zone where
@@ -84,7 +87,7 @@ insert padding into my structure and break that logic. That was probably what
 was actually happening when `command` was an `uint8_t`, the `len` field was not
 completely filled up, some parts were written to the padding, and when I
 switched to `uint16_t`, the memory was already aligned and no more padding
-occurred (basically it was luck).
+occurred.
 * Thus, `recv_efficient()` and `send_efficient()` now manage each struct
 attribute separately, by accessing them with `->` operator, so it is guaranteed
 that padding does not interfere with the logic anymore.
@@ -99,7 +102,7 @@ future projects.
 
 ---
 
-## 6. Program flow and logic
+## Program flow and logic
 * The `server` program starts by initializing the basic sockets and `pollfd`
 structs that would be used (stdin for messages from user, UDP for messages
 from UDP clients and TCP for listening for client connection requests). It then
@@ -140,15 +143,12 @@ the resources and closes. All the clients must also close.
 
 ---
 
-## 7. Punctual implementation details
+## Punctual implementation details
 * For managing the `pollfd` entries, a C++ `vector` is used in both server and
 subscriber. Entries are added using the `push_back()` method, and resizing is
 done behind the scenes.
 * The subscriber only uses two `pollfd` structures, but the server can have an
-unlimited number of them. That number is stored as a class attribute and always
-updated, because the `Server::run` method uses it in a `while(true)` loop, so
-if `vector::size()` was used, it might have been inefficient for a large number
-of entries.
+unlimited number of them.
 * A `vector::iterator` is used to traverse the `pollfd` structures of the
 connected clients, to allow for removal (using `vector::erase`) if one of them
 disconnects.
@@ -174,14 +174,14 @@ over TCP previously discussed.
 
 ---
 
-## 8. Wildcard handling
+## Wildcard handling
 * The `client` structure stores the subscribed topics in a `map` in the
 following way: the `key` is the actual topic as a `string`, while the value is
 a `vector` of `strings`, which stand for the tokens obtained by tokenizing the
 topic with the `/` delimiter. Thus, when checking if a user is subscribed to a
 given topic, firstly the `map::find` method is used, which checks the topics
-without wildcards, because it would not make sense to trigger the wildcard
-checking algorithm if the topic could be directly found.
+(the keys) without wildcards, because it would not make sense to trigger the
+wildcard checking algorithm if the topic could be directly found.
 * I decided to use a `map` here instead of an `unordered_map` based on a debate
 from `StackOverflow`, from where I learnt that the `map` might be faster for
 repeated insertions (such as these subscriptions) than the `unordered_map`, 
@@ -202,20 +202,17 @@ this was another interesting thing learnt.
 
 ---
 
-## 9. Final thoughts
+## Final thoughts
 * It is worth noting that all the tests pass successfully on my machine, and
 that I also tested manually all the situations I could think of, using
 `valgrind`, and there are no errors or memory leaks.
 * I found this homework to be tough, but also challenging in a good way,
 forcing me to use things I hadn't used before and to think very low level in
 terms of memory and efficiency.
-* I really worked very hard on this assignment and tried to think the program
-as thorough as I could. I find the implementation to be really robust. Also,
-defensive programming principles were used everywhere.
 
 ---
 
-## 10. Bibliography
+## Bibliography
 * The 7th laboratory was used as the base for sockets and multiplexing using
 poll: https://pcom.pages.upb.ro/labs/lab7/tcp.html
 * To learn how to organize the code in classes:
